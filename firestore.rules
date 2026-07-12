@@ -1,0 +1,115 @@
+rules_version = '2';
+
+// Paste this into Firebase Console -> Firestore Database -> Rules.
+//
+// Data model this assumes:
+//   /staff/{uid}          -- { role: "dispatcher" | "responder", name, responderId? }
+//   /responders/{id}      -- { name, status, currentReportId, lat, lon, lastLocationUpdate }
+//   /reports/{id}         -- { type, location, description, urgency, status,
+//                              createdAt, updatedAt, lat, lon, photos: [url,...],
+//                              responderId, responderName, dispatchTimeMinutes,
+//                              reporterUid }
+//   /audit_log/{id}       -- { reportId, action, actor, timestamp, details }
+//
+// Security model:
+//   - Anyone signed in (including anonymous auth, used for citizens
+//     submitting reports) can CREATE a report, but only with a validated
+//     shape, and only status "new".
+//   - Only staff (dispatcher or responder role, checked via /staff/{uid})
+//     can UPDATE or DELETE reports, responders, or read the full staff
+//     list. Citizens can only ever read the single report they created
+//     (matched by reporterUid) via the "get" they'd use on the tracking
+//     page.
+//   - Responders can only update their OWN responder doc (their live
+//     location) — not anyone else's.
+//   - audit_log is append-only: staff can create entries, nobody can edit
+//     or delete them (keeps the trail honest).
+//
+// Known limitation (documented, not hidden): these rules stop a browser
+// from writing bad data or acting outside its role, but they do NOT
+// rate-limit how often a signed-in anonymous user can call create() —
+// that requires Firebase App Check (or a Cloud Function on a paid plan)
+// to fully solve. For a student/prototype deployment this is an
+// acceptable, honestly-documented gap.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isStaff() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/staff/$(request.auth.uid));
+    }
+
+    function staffRole() {
+      return get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role;
+    }
+
+    function isDispatcher() {
+      return isStaff() && staffRole() == 'dispatcher';
+    }
+
+    function isResponder() {
+      return isStaff() && staffRole() == 'responder';
+    }
+
+    function isStaffMember() {
+      return isDispatcher() || isResponder();
+    }
+
+    // ---------------- staff ----------------
+    match /staff/{uid} {
+      // Each staff member can read their own role doc (needed to decide
+      // which page to route them to after login). Dispatchers can read
+      // any staff doc to see the responder roster.
+      allow get: if isSignedIn() && (request.auth.uid == uid || isDispatcher());
+      allow list: if isDispatcher();
+      // Staff accounts are provisioned manually via the Firebase console
+      // (per the README) — never created from client code.
+      allow write: if false;
+    }
+
+    // ---------------- responders ----------------
+    match /responders/{responderId} {
+      allow read: if isSignedIn();
+      // Dispatchers manage the roster; a responder may only update their
+      // own doc (e.g. sharing live location, changing their own status).
+      allow create, delete: if isDispatcher();
+      allow update: if isDispatcher() ||
+        (isResponder() &&
+         get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.responderId == responderId);
+    }
+
+    // ---------------- reports ----------------
+    match /reports/{reportId} {
+      // Citizens can read only the report they created (tracking page);
+      // staff can read everything (dashboard).
+      allow get: if isStaffMember() ||
+        (isSignedIn() && resource.data.reporterUid == request.auth.uid);
+      allow list: if isStaffMember();
+
+      allow create: if isSignedIn()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.status == 'new'
+        && request.resource.data.type is string
+        && request.resource.data.location is string
+        && request.resource.data.location.size() > 0
+        && request.resource.data.urgency in ['low', 'moderate', 'critical']
+        && request.resource.data.photos.size() <= 3;
+
+      // Only staff move a report through its lifecycle.
+      allow update: if isStaffMember();
+      allow delete: if isDispatcher();
+    }
+
+    // ---------------- audit_log ----------------
+    match /audit_log/{entryId} {
+      allow read: if isStaffMember();
+      allow create: if isSignedIn(); // citizens' own report-created events also log
+      allow update, delete: if false; // append-only
+    }
+  }
+}

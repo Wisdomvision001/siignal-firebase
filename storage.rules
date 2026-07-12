@@ -1,0 +1,24 @@
+rules_version = '2';
+
+// Paste this into Firebase Console -> Storage -> Rules.
+//
+// Photos are uploaded to: /report-photos/{reportId}/{filename}
+// Anyone signed in (including anonymous, i.e. citizens) can upload photos
+// while creating a report, but only images, and only under 5MB each —
+// the client already compresses to well under this before upload, this is
+// a server-enforced backstop against a modified/malicious client.
+// Staff can read all photos (dashboard, tracking page for a report's own
+// photos is served via the report's stored download URLs, which are
+// public-readable by design once generated — see README for the tradeoff).
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /report-photos/{reportId}/{fileName} {
+      allow read: if true; // photo URLs are embedded in report docs shown on the tracking page
+      allow write: if request.auth != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if false;
+    }
+  }
+}

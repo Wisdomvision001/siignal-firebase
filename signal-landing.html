@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal — Real-Time Response Mapping</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FFFFFF;
+    --surface:#F4F6F6;
+    --surface-2:#EDEFEF;
+    --gray-light:#BBBFBF;
+    --gray-mid:#878787;
+    --gray-dark:#4A4D4D;
+    --ink:#1C1F1F;
+    --teal:#05AD98;
+    --teal-dark:#048572;
+    --teal-light:#E4F7F4;
+    --radius:14px;
+    --font-display:'Space Grotesk', sans-serif;
+    --font-body:'Inter', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit; text-decoration:none;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 32px;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+  }
+
+  /* ---------- NAV ---------- */
+  header{
+    position:sticky; top:0; z-index:50;
+    background:rgba(255,255,255,0.85);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--surface-2);
+  }
+  nav{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:20px 32px; max-width:1180px; margin:0 auto;
+  }
+  .logo{
+    display:flex; align-items:center; gap:10px;
+    font-family:var(--font-display); font-weight:700; font-size:1.25rem;
+    letter-spacing:-0.02em;
+  }
+  .logo-dot{
+    width:10px; height:10px; border-radius:50%;
+    background:var(--teal);
+    box-shadow:0 0 0 0 rgba(5,173,152,0.5);
+    animation:pulse-dot 2.2s infinite;
+  }
+  @keyframes pulse-dot{
+    0%{box-shadow:0 0 0 0 rgba(5,173,152,0.45);}
+    70%{box-shadow:0 0 0 9px rgba(5,173,152,0);}
+    100%{box-shadow:0 0 0 0 rgba(5,173,152,0);}
+  }
+  .nav-links{display:flex; gap:32px; font-size:0.94rem; color:var(--gray-dark); font-weight:500;}
+  .nav-links a:hover{color:var(--ink);}
+  .nav-cta{
+    background:var(--ink); color:#fff; padding:10px 20px; border-radius:8px;
+    font-size:0.9rem; font-weight:600; font-family:var(--font-body);
+    transition:background .2s ease;
+  }
+  .nav-cta:hover{background:var(--teal-dark);}
+  @media (max-width:760px){ .nav-links{display:none;} }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    padding:88px 0 60px;
+    display:grid; grid-template-columns:1.05fr 0.95fr; gap:56px; align-items:center;
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--font-mono); font-size:0.78rem; letter-spacing:0.06em;
+    color:var(--teal-dark); background:var(--teal-light);
+    padding:6px 12px; border-radius:100px; margin-bottom:22px; text-transform:uppercase;
+  }
+  h1{
+    font-family:var(--font-display); font-weight:700;
+    font-size:clamp(2.3rem, 4vw, 3.4rem);
+    letter-spacing:-0.03em; line-height:1.05; color:var(--ink);
+    margin-bottom:22px;
+  }
+  h1 em{ font-style:normal; color:var(--teal);}
+  .hero p{
+    font-size:1.08rem; color:var(--gray-dark); max-width:480px; margin-bottom:34px;
+  }
+  .hero-ctas{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:40px;}
+  .btn-primary{
+    background:var(--teal); color:#fff; padding:14px 26px; border-radius:10px;
+    font-weight:600; font-size:0.96rem; display:inline-block;
+    transition:transform .15s ease, background .2s ease;
+  }
+  .btn-primary:hover{background:var(--teal-dark); transform:translateY(-1px);}
+  .btn-secondary{
+    background:transparent; color:var(--ink); padding:14px 26px; border-radius:10px;
+    font-weight:600; font-size:0.96rem; border:1.5px solid var(--gray-light);
+    transition:border-color .2s ease;
+  }
+  .btn-secondary:hover{border-color:var(--gray-mid);}
+  .hero-meta{
+    display:flex; gap:28px; font-family:var(--font-mono); font-size:0.82rem; color:var(--gray-mid);
+  }
+  .hero-meta b{color:var(--ink); font-size:1rem; display:block; font-family:var(--font-display);}
+
+  /* ---------- SIGNATURE MAP ---------- */
+  .map-card{
+    background:var(--surface);
+    border:1px solid var(--surface-2);
+    border-radius:20px;
+    padding:20px;
+    position:relative;
+    box-shadow:0 30px 60px -30px rgba(28,31,31,0.18);
+  }
+  .map-topbar{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid);
+    margin-bottom:14px; padding:0 4px;
+  }
+  .live-tag{
+    display:flex; align-items:center; gap:6px; color:var(--teal-dark); font-weight:600;
+  }
+  .live-tag .dot{width:6px; height:6px; border-radius:50%; background:var(--teal); animation:pulse-dot 2s infinite;}
+  .map-svg-wrap{
+    background:#fff; border-radius:14px; overflow:hidden; border:1px solid var(--surface-2);
+  }
+  .map-feed{
+    margin-top:14px; display:flex; flex-direction:column; gap:0;
+    font-family:var(--font-mono); font-size:0.78rem;
+    max-height:118px; overflow:hidden; position:relative;
+  }
+  .map-feed::after{
+    content:''; position:absolute; bottom:0; left:0; right:0; height:34px;
+    background:linear-gradient(to bottom, transparent, var(--surface));
+  }
+  .feed-row{
+    display:flex; justify-content:space-between; gap:10px;
+    padding:8px 4px; border-top:1px solid var(--surface-2); color:var(--gray-dark);
+  }
+  .feed-row span:first-child{color:var(--ink);}
+  .feed-row .status{color:var(--teal-dark); font-weight:600;}
+
+  /* ---------- STATS ---------- */
+  .stats{
+    border-top:1px solid var(--surface-2);
+    border-bottom:1px solid var(--surface-2);
+    padding:44px 0;
+  }
+  .stats .wrap{display:grid; grid-template-columns:repeat(4,1fr); gap:24px;}
+  .stat-num{
+    font-family:var(--font-display); font-weight:700; font-size:2.2rem; color:var(--ink);
+    letter-spacing:-0.02em;
+  }
+  .stat-num span{color:var(--teal);}
+  .stat-label{
+    font-family:var(--font-mono); font-size:0.78rem; color:var(--gray-mid); margin-top:6px;
+    text-transform:uppercase; letter-spacing:0.04em;
+  }
+  @media (max-width:760px){ .stats .wrap{grid-template-columns:repeat(2,1fr);} }
+
+  /* ---------- HOW IT WORKS ---------- */
+  .how{padding:100px 0;}
+  .section-head{max-width:560px; margin-bottom:56px;}
+  .section-eyebrow{
+    font-family:var(--font-mono); font-size:0.78rem; color:var(--teal-dark);
+    text-transform:uppercase; letter-spacing:0.06em; margin-bottom:14px; display:block;
+  }
+  .section-head h2{
+    font-family:var(--font-display); font-size:clamp(1.7rem,2.6vw,2.3rem);
+    font-weight:700; letter-spacing:-0.02em; margin-bottom:14px;
+  }
+  .section-head p{color:var(--gray-dark); font-size:1.02rem;}
+  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:28px;}
+  .step{
+    background:var(--surface); border:1px solid var(--surface-2); border-radius:16px;
+    padding:30px 26px;
+  }
+  .step-num{
+    font-family:var(--font-mono); color:var(--teal); font-weight:600; font-size:0.85rem;
+    display:block; margin-bottom:18px;
+  }
+  .step h3{
+    font-family:var(--font-display); font-size:1.15rem; margin-bottom:10px; font-weight:600;
+  }
+  .step p{color:var(--gray-dark); font-size:0.94rem;}
+  @media (max-width:900px){ .steps{grid-template-columns:1fr;} .hero{grid-template-columns:1fr;} }
+
+  /* ---------- FOOTER ---------- */
+  footer{
+    border-top:1px solid var(--surface-2);
+    padding:40px 0; display:flex; justify-content:space-between; align-items:center;
+    font-family:var(--font-mono); font-size:0.8rem; color:var(--gray-mid);
+    flex-wrap:wrap; gap:16px;
+  }
+  .foot-links{display:flex; gap:20px;}
+  .foot-links a:hover{color:var(--ink);}
+
+  /* ---------- MAP ANIMATION ---------- */
+  .pulse-ring{ transform-origin:center; animation:ring 2.6s ease-out infinite; }
+  .pulse-ring.d2{ animation-delay:0.9s; }
+  .pulse-ring.d3{ animation-delay:1.7s; }
+  @keyframes ring{
+    0%{ r:4; opacity:0.9; }
+    100%{ r:26; opacity:0; }
+  }
+  .path-dash{ stroke-dasharray:4 5; animation:dash 20s linear infinite; }
+  @keyframes dash{ to{ stroke-dashoffset:-200; } }
+</style>
+</head>
+<body data-page="landing">
+
+<header>
+  <nav>
+    <div class="logo"><span class="logo-dot"></span>Signal</div>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#feed">Live feed</a>
+      <a href="#stats">Impact</a>
+    </div>
+    <a class="nav-cta" href="signal-report-form.html">Report now</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="wrap" style="display:contents;">
+  <div>
+    <span class="eyebrow">● Live incident mapping</span>
+    <h1>Every report finds a <em>responder</em>, in seconds — not minutes.</h1>
+    <p>Signal turns scattered emergency calls, texts, and app reports into one live map, so dispatchers see exactly where help is needed and who's closest to send.</p>
+    <div class="hero-ctas">
+      <a class="btn-primary" href="signal-report-form.html">Report an incident</a>
+      <a class="btn-secondary" href="signal-login.html">Staff sign-in</a>
+    </div>
+    <div class="hero-meta">
+      <div><b>04:12</b>avg. old workflow</div>
+      <div><b>00:47</b>avg. with Signal</div>
+      <div><b>24/7</b>coverage</div>
+    </div>
+  </div>
+
+  <div class="map-card">
+    <div class="map-topbar">
+      <span class="live-tag"><span class="dot"></span>EXAMPLE VIEW</span>
+      <span>Sign in to see live activity</span>
+    </div>
+    <div class="map-svg-wrap">
+      <svg viewBox="0 0 480 300" width="100%" style="display:block; height:auto;">
+        <defs>
+          <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#EDEFEF" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect width="480" height="300" fill="#FFFFFF"/>
+        <rect width="480" height="300" fill="url(#grid)"/>
+        <!-- routes -->
+        <path d="M 240 150 L 120 90" stroke="#BBBFBF" stroke-width="2" class="path-dash" fill="none"/>
+        <path d="M 240 150 L 340 70" stroke="#BBBFBF" stroke-width="2" class="path-dash" fill="none"/>
+        <path d="M 240 150 L 360 220" stroke="#BBBFBF" stroke-width="2" class="path-dash" fill="none"/>
+        <path d="M 240 150 L 100 220" stroke="#BBBFBF" stroke-width="2" class="path-dash" fill="none"/>
+
+        <!-- dispatch center -->
+        <circle cx="240" cy="150" r="7" fill="#1C1F1F"/>
+        <circle cx="240" cy="150" r="12" fill="none" stroke="#1C1F1F" stroke-width="1.5" opacity="0.4"/>
+
+        <!-- incident markers with pulse -->
+        <g>
+          <circle cx="120" cy="90" r="4" fill="#05AD98" class="pulse-ring"/>
+          <circle cx="120" cy="90" r="5" fill="#05AD98"/>
+        </g>
+        <g>
+          <circle cx="340" cy="70" r="4" fill="#05AD98" class="pulse-ring d2"/>
+          <circle cx="340" cy="70" r="5" fill="#05AD98"/>
+        </g>
+        <g>
+          <circle cx="360" cy="220" r="4" fill="#05AD98" class="pulse-ring d3"/>
+          <circle cx="360" cy="220" r="5" fill="#05AD98"/>
+        </g>
+        <g>
+          <circle cx="100" cy="220" r="4" fill="#878787" class="pulse-ring"/>
+          <circle cx="100" cy="220" r="5" fill="#878787"/>
+        </g>
+      </svg>
+    </div>
+    <div class="map-feed">
+      <div class="feed-row"><span>#0192 — Road accident, Jimeta Main</span><span class="status">dispatched</span></div>
+      <div class="feed-row"><span>#0191 — Flood risk, Yola South</span><span class="status">dispatched</span></div>
+      <div class="feed-row"><span>#0190 — Medical, Modibbo Adama Rd</span><span>en route</span></div>
+      <div class="feed-row"><span>#0189 — Structure fire, Sabon Gari</span><span>resolved</span></div>
+    </div>
+  </div>
+  </div>
+</section>
+
+<section class="stats" id="stats">
+  <div class="wrap">
+    <div>
+      <div class="stat-num"><span>82%</span></div>
+      <div class="stat-label">Faster dispatch time</div>
+    </div>
+    <div>
+      <div class="stat-num">1,240</div>
+      <div class="stat-label">Reports mapped / month</div>
+    </div>
+    <div>
+      <div class="stat-num">340<span>m</span></div>
+      <div class="stat-label">Avg. locate accuracy</div>
+    </div>
+    <div>
+      <div class="stat-num">24/7</div>
+      <div class="stat-label">Live coverage</div>
+    </div>
+  </div>
+</section>
+
+<section class="how" id="how">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-eyebrow">The pipeline</span>
+      <h2>From report to responder, one continuous line.</h2>
+      <p>Signal follows a report through three fixed stages — nothing is dropped, and every stage is visible on the map in real time.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">01 — INTAKE</span>
+        <h3>A report comes in</h3>
+        <p>Calls, SMS, and app submissions land in one queue, tagged with location and urgency the moment they arrive.</p>
+      </div>
+      <div class="step">
+        <span class="step-num">02 — MAP</span>
+        <h3>It appears on the live map</h3>
+        <p>Signal plots the incident instantly, next to every available responder, so dispatchers see the whole picture at once.</p>
+      </div>
+      <div class="step">
+        <span class="step-num">03 — DISPATCH</span>
+        <h3>Nearest responder is sent</h3>
+        <p>The closest available team is routed in, with live position tracking until the report is marked resolved.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:16px;">
+    <span>SIGNAL — RESPONSE MAPPING SYSTEM</span>
+    <div class="foot-links">
+      <a href="#how">How it works</a>
+      <a href="#stats">Impact</a>
+      <a href="signal-report-form.html">Report now</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

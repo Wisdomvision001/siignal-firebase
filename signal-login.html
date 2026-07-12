@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal — Staff Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FFFFFF; --surface:#F4F6F6; --surface-2:#EDEFEF;
+    --gray-mid:#878787; --gray-dark:#4A4D4D; --ink:#1C1F1F;
+    --teal:#05AD98; --teal-dark:#048572; --teal-light:#E4F7F4;
+    --red:#D64545; --red-light:#FCE9E9;
+    --font-display:'Space Grotesk', sans-serif; --font-body:'Inter', sans-serif; --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{ font-family:var(--font-body); color:var(--ink); background:var(--surface); min-height:100vh; display:flex; align-items:center; justify-content:center; }
+  .card{ background:#fff; border:1px solid var(--surface-2); border-radius:18px; padding:36px; width:100%; max-width:380px; box-shadow:0 20px 50px -30px rgba(28,31,31,0.15); }
+  .logo{ display:flex; align-items:center; gap:9px; font-family:var(--font-display); font-weight:700; font-size:1.15rem; margin-bottom:8px; }
+  .logo-dot{ width:9px; height:9px; border-radius:50%; background:var(--teal); }
+  h1{ font-family:var(--font-display); font-size:1.3rem; margin-bottom:6px; }
+  p.sub{ color:var(--gray-dark); font-size:0.88rem; margin-bottom:24px; }
+  label{ display:block; font-size:0.82rem; font-weight:600; margin-bottom:6px; }
+  input{ width:100%; border:1.5px solid var(--surface-2); border-radius:10px; padding:11px 13px; font-size:0.9rem; margin-bottom:16px; }
+  input:focus{ outline:none; border-color:var(--teal); }
+  button{ width:100%; background:var(--ink); color:#fff; border:none; border-radius:10px; padding:13px; font-size:0.92rem; font-weight:600; cursor:pointer; font-family:inherit; }
+  button:hover{ background:var(--teal-dark); }
+  button:disabled{ opacity:0.6; cursor:not-allowed; }
+  .error{ display:none; background:var(--red-light); color:var(--red); font-size:0.82rem; padding:10px 13px; border-radius:8px; margin-bottom:16px; }
+  .error.show{ display:block; }
+  .foot-note{ text-align:center; font-family:var(--font-mono); font-size:0.7rem; color:var(--gray-mid); margin-top:20px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo"><span class="logo-dot"></span>Signal</div>
+  <h1>Staff sign-in</h1>
+  <p class="sub">For dispatchers and responders. Citizens don't need an account to report an incident.</p>
+
+  <div class="error" id="login-error"></div>
+
+  <form id="login-form">
+    <label for="email">Email</label>
+    <input type="email" id="email" autocomplete="username" required>
+    <label for="password">Password</label>
+    <input type="password" id="password" autocomplete="current-password" required>
+    <button type="submit" id="login-btn">Sign in</button>
+  </form>
+
+  <div class="foot-note">Accounts are created by an administrator in the Firebase console — see the project README.</div>
+</div>
+
+<script type="module">
+  import { auth, db } from './firebase-init.js';
+  import { signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+  import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+  const form = document.getElementById('login-form');
+  const errorBox = document.getElementById('login-error');
+  const loginBtn = document.getElementById('login-btn');
+
+  function showError(message) {
+    errorBox.textContent = message;
+    errorBox.classList.add('show');
+  }
+
+  async function routeByRole(uid) {
+    const staffDoc = await getDoc(doc(db, 'staff', uid));
+    if (!staffDoc.exists()) {
+      showError('This account has no staff role assigned. Ask a dispatcher to set one up in Firestore under /staff/' + uid + '.');
+      await auth.signOut();
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Sign in';
+      return;
+    }
+    const role = staffDoc.data().role;
+    if (role === 'dispatcher') {
+      window.location.href = 'signal-dashboard.html';
+    } else if (role === 'responder') {
+      window.location.href = 'signal-responder.html';
+    } else {
+      showError('Unknown role "' + role + '" — expected "dispatcher" or "responder".');
+      await auth.signOut();
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Sign in';
+    }
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errorBox.classList.remove('show');
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Signing in…';
+
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    try {
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      await routeByRole(credential.user.uid);
+    } catch (error) {
+      showError('Could not sign in — check the email and password and try again.');
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Sign in';
+    }
+  });
+
+  // If already signed in (e.g. came back to this page by mistake), route immediately.
+  auth.onAuthStateChanged((user) => {
+    if (user && !user.isAnonymous) {
+      routeByRole(user.uid);
+    }
+  });
+</script>
+</body>
+</html>

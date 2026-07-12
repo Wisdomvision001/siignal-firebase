@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal — Responder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  :root{
+    --bg:#FFFFFF; --surface:#F4F6F6; --surface-2:#EDEFEF;
+    --gray-mid:#878787; --gray-dark:#4A4D4D; --ink:#1C1F1F;
+    --teal:#05AD98; --teal-dark:#048572; --teal-light:#E4F7F4;
+    --amber:#C98A2E; --amber-light:#FBF1E1; --red:#D64545; --red-light:#FCE9E9;
+    --font-display:'Space Grotesk', sans-serif; --font-body:'Inter', sans-serif; --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{ font-family:var(--font-body); color:var(--ink); background:var(--surface); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  button{ font-family:inherit; cursor:pointer; }
+
+  .topbar{ display:flex; justify-content:space-between; align-items:center; padding:18px 24px; background:#fff; border-bottom:1px solid var(--surface-2); }
+  .logo{ display:flex; align-items:center; gap:9px; font-family:var(--font-display); font-weight:700; font-size:1.1rem; }
+  .logo-dot{ width:9px; height:9px; border-radius:50%; background:var(--teal); }
+  .logout-btn{ font-size:0.8rem; color:var(--gray-mid); text-decoration:underline; background:none; border:none; }
+
+  .page{ max-width:520px; margin:0 auto; padding:24px 20px 60px; }
+
+  .share-card{ background:#fff; border:1px solid var(--surface-2); border-radius:16px; padding:22px; margin-bottom:20px; }
+  .share-row{ display:flex; align-items:center; justify-content:space-between; }
+  .share-row h2{ font-family:var(--font-display); font-size:1.05rem; }
+  .toggle{ position:relative; width:46px; height:26px; border-radius:100px; background:var(--surface-2); border:none; flex-shrink:0; }
+  .toggle.on{ background:var(--teal); }
+  .toggle::after{ content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition:left .15s ease; }
+  .toggle.on::after{ left:23px; }
+  .share-status{ font-family:var(--font-mono); font-size:0.75rem; color:var(--gray-mid); margin-top:10px; }
+  .share-status.live{ color:var(--teal-dark); }
+
+  .assignment-card{ background:#fff; border:1px solid var(--surface-2); border-radius:16px; padding:22px; }
+  .assignment-empty{ text-align:center; color:var(--gray-mid); font-size:0.9rem; padding:20px 0; }
+  .assignment-header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+  .assignment-loc{ font-family:var(--font-display); font-size:1.1rem; font-weight:700; }
+  .assignment-type{ color:var(--gray-mid); font-size:0.85rem; margin-top:2px; }
+  .badge{ font-family:var(--font-mono); font-size:0.7rem; font-weight:600; padding:4px 10px; border-radius:100px; text-transform:uppercase; }
+  .badge.critical{ background:var(--red-light); color:var(--red); }
+  .badge.moderate{ background:var(--amber-light); color:var(--amber); }
+  .badge.low{ background:var(--surface); color:var(--gray-dark); }
+  .assignment-desc{ font-size:0.88rem; color:var(--gray-dark); margin:14px 0; line-height:1.5; }
+  #responder-map{ width:100%; height:240px; border-radius:12px; border:1px solid var(--surface-2); margin-bottom:16px; }
+  .action-row{ display:flex; gap:10px; }
+  .action-row button{ flex:1; border:none; border-radius:10px; padding:13px; font-weight:600; font-size:0.88rem; }
+  .btn-enroute{ background:var(--amber-light); color:var(--amber); }
+  .btn-resolve{ background:var(--teal); color:#fff; }
+  .photos-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .photos-row img{ width:80px; height:80px; object-fit:cover; border-radius:8px; }
+
+  .error{ background:var(--red-light); color:var(--red); font-size:0.82rem; padding:10px 13px; border-radius:8px; margin-bottom:16px; display:none; }
+  .error.show{ display:block; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><span class="logo-dot"></span>Signal — Responder</div>
+  <button class="logout-btn" id="logout-btn">Sign out</button>
+</div>
+
+<div class="page">
+  <div class="error" id="page-error"></div>
+
+  <div class="share-card">
+    <div class="share-row">
+      <div>
+        <h2>Share my location</h2>
+      </div>
+      <button class="toggle" id="share-toggle" aria-label="Toggle location sharing"></button>
+    </div>
+    <div class="share-status" id="share-status">Off — dispatch and the reporter can't see your position.</div>
+  </div>
+
+  <div class="assignment-card" id="assignment-card">
+    <div class="assignment-empty" id="assignment-empty">No active assignment right now. Turn on location sharing so dispatch can route the next report to you.</div>
+    <div id="assignment-content" style="display:none;">
+      <div class="assignment-header">
+        <div>
+          <div class="assignment-loc" id="assign-location">—</div>
+          <div class="assignment-type" id="assign-type">—</div>
+        </div>
+        <span class="badge" id="assign-urgency">—</span>
+      </div>
+      <p class="assignment-desc" id="assign-desc"></p>
+      <div id="responder-map"></div>
+      <div class="action-row">
+        <button class="btn-enroute" id="mark-enroute">En route</button>
+        <button class="btn-resolve" id="mark-resolved">Mark resolved</button>
+      </div>
+      <div class="photos-row" id="assign-photos"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script type="module">
+  import { auth, db } from './firebase-init.js';
+  import { signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+  import { doc, getDoc, updateDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+  import { escapeHtml, DISPATCH_CENTER } from './utils.js';
+  import { logAuditEvent } from './dispatch.js';
+
+  const pageError = document.getElementById('page-error');
+  function showError(msg) { pageError.textContent = msg; pageError.classList.add('show'); }
+
+  let responderId = null;
+  let watchId = null;
+  let sharing = false;
+  let lastWriteAt = 0;
+  const WRITE_THROTTLE_MS = 8000; // don't hammer Firestore on every GPS tick
+
+  document.getElementById('logout-btn').addEventListener('click', async () => {
+    stopSharing();
+    await signOut(auth);
+    window.location.href = 'signal-login.html';
+  });
+
+  auth.onAuthStateChanged(async (user) => {
+    if (!user || user.isAnonymous) {
+      window.location.href = 'signal-login.html';
+      return;
+    }
+    const staffDoc = await getDoc(doc(db, 'staff', user.uid));
+    if (!staffDoc.exists() || staffDoc.data().role !== 'responder' || !staffDoc.data().responderId) {
+      showError('This account is not set up as a responder (missing role or responderId in /staff).');
+      return;
+    }
+    responderId = staffDoc.data().responderId;
+    initResponderPage();
+  });
+
+  const toggle = document.getElementById('share-toggle');
+  const shareStatus = document.getElementById('share-status');
+
+  function startSharing() {
+    if (!navigator.geolocation) {
+      showError('This device/browser does not support location sharing.');
+      return;
+    }
+    sharing = true;
+    toggle.classList.add('on');
+    shareStatus.textContent = 'Getting your position…';
+    watchId = navigator.geolocation.watchPosition(
+      async (position) => {
+        const now = Date.now();
+        shareStatus.textContent = `Live — last updated ${new Date().toLocaleTimeString('en-GB', { hour12: false })}`;
+        shareStatus.classList.add('live');
+        if (now - lastWriteAt < WRITE_THROTTLE_MS) return;
+        lastWriteAt = now;
+        try {
+          await updateDoc(doc(db, 'responders', responderId), {
+            lat: position.coords.latitude,
+            lon: position.coords.longitude,
+            lastLocationUpdate: serverTimestamp()
+          });
+        } catch (error) {
+          showError('Could not update your location — check your connection.');
+        }
+      },
+      () => {
+        showError('Could not access your device location. Location sharing needs permission.');
+        stopSharing();
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+    );
+  }
+
+  function stopSharing() {
+    sharing = false;
+    toggle.classList.remove('on');
+    shareStatus.textContent = "Off — dispatch and the reporter can't see your position.";
+    shareStatus.classList.remove('live');
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
+  }
+
+  toggle.addEventListener('click', () => { sharing ? stopSharing() : startSharing(); });
+
+  // ---------------- Assignment ----------------
+  let responderMap = null;
+  let incidentMarker = null;
+  let selfMarker = null;
+  let currentReportId = null;
+
+  function renderAssignment(responderData, reportData) {
+    const emptyEl = document.getElementById('assignment-empty');
+    const contentEl = document.getElementById('assignment-content');
+
+    if (!responderData.currentReportId || !reportData) {
+      emptyEl.style.display = 'block';
+      contentEl.style.display = 'none';
+      currentReportId = null;
+      return;
+    }
+
+    currentReportId = responderData.currentReportId;
+    emptyEl.style.display = 'none';
+    contentEl.style.display = 'block';
+
+    document.getElementById('assign-location').textContent = reportData.location;
+    document.getElementById('assign-type').textContent = reportData.type;
+    document.getElementById('assign-desc').textContent = reportData.description || 'No additional notes from the reporter.';
+    const badge = document.getElementById('assign-urgency');
+    badge.textContent = reportData.urgency;
+    badge.className = `badge ${reportData.urgency}`;
+
+    const hasCoords = typeof reportData.lat === 'number' && typeof reportData.lon === 'number';
+    const lat = hasCoords ? reportData.lat : DISPATCH_CENTER.lat;
+    const lon = hasCoords ? reportData.lon : DISPATCH_CENTER.lon;
+
+    if (!responderMap) {
+      responderMap = L.map('responder-map').setView([lat, lon], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(responderMap);
+    }
+    if (!incidentMarker) {
+      incidentMarker = L.circleMarker([lat, lon], { radius: 9, fillColor: '#D64545', color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9 }).bindPopup('Incident location').addTo(responderMap);
+    } else {
+      incidentMarker.setLatLng([lat, lon]);
+    }
+    responderMap.setView([lat, lon], 14);
+    setTimeout(() => responderMap.invalidateSize(), 50);
+
+    const photosRow = document.getElementById('assign-photos');
+    photosRow.innerHTML = (reportData.photos || []).map((src) => `<img src="${src}" alt="Reporter photo">`).join('');
+  }
+
+  document.getElementById('mark-enroute').addEventListener('click', async () => {
+    if (!currentReportId) return;
+    await updateDoc(doc(db, 'reports', currentReportId), { status: 'enroute', updatedAt: serverTimestamp() });
+    await logAuditEvent(currentReportId, 'status_changed', auth.currentUser.email, '-> enroute (from responder)');
+  });
+
+  document.getElementById('mark-resolved').addEventListener('click', async () => {
+    if (!currentReportId) return;
+    await updateDoc(doc(db, 'reports', currentReportId), { status: 'resolved', updatedAt: serverTimestamp() });
+    await updateDoc(doc(db, 'responders', responderId), { status: 'available', currentReportId: null });
+    await logAuditEvent(currentReportId, 'status_changed', auth.currentUser.email, '-> resolved (from responder)');
+  });
+
+  function initResponderPage() {
+    let unsubscribeReport = null;
+
+    onSnapshot(doc(db, 'responders', responderId), (snap) => {
+      if (!snap.exists()) return;
+      const responderData = snap.data();
+
+      if (unsubscribeReport) { unsubscribeReport(); unsubscribeReport = null; }
+
+      if (responderData.currentReportId) {
+        unsubscribeReport = onSnapshot(doc(db, 'reports', responderData.currentReportId), (reportSnap) => {
+          renderAssignment(responderData, reportSnap.exists() ? reportSnap.data() : null);
+        });
+      } else {
+        renderAssignment(responderData, null);
+      }
+    });
+  }
+</script>
+</body>
+</html>

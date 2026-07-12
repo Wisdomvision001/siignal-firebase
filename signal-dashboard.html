@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  :root{
+    --bg:#FFFFFF; --surface:#F4F6F6; --surface-2:#EDEFEF;
+    --gray-light:#BBBFBF; --gray-mid:#878787; --gray-dark:#4A4D4D; --ink:#1C1F1F;
+    --teal:#05AD98; --teal-dark:#048572; --teal-light:#E4F7F4;
+    --amber:#C98A2E; --amber-light:#FBF1E1;
+    --font-display:'Space Grotesk', sans-serif; --font-body:'Inter', sans-serif; --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{ font-family:var(--font-body); color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; }
+  a{color:inherit; text-decoration:none;}
+  button{font-family:inherit; cursor:pointer; border:none; background:none;}
+
+  .app{ display:grid; grid-template-columns:232px 1fr; min-height:100vh; }
+  .sidebar{ background:var(--ink); color:#fff; padding:24px 18px; display:flex; flex-direction:column; }
+  .logo{ display:flex; align-items:center; gap:9px; font-family:var(--font-display); font-weight:700; font-size:1.15rem; padding:6px 8px 28px; }
+  .logo-dot{ width:9px; height:9px; border-radius:50%; background:var(--teal); box-shadow:0 0 0 0 rgba(5,173,152,0.5); animation:pulse-dot 2.2s infinite; }
+  @keyframes pulse-dot{ 0%{box-shadow:0 0 0 0 rgba(5,173,152,0.45);} 70%{box-shadow:0 0 0 8px rgba(5,173,152,0);} 100%{box-shadow:0 0 0 0 rgba(5,173,152,0);} }
+  .nav-item{ display:flex; align-items:center; gap:11px; padding:11px 12px; border-radius:9px; color:#C7C9C9; font-size:0.9rem; font-weight:500; margin-bottom:2px; transition:background .15s ease, color .15s ease; cursor:pointer; }
+  .nav-item svg{ width:17px; height:17px; flex-shrink:0; }
+  .nav-item:hover{ background:rgba(255,255,255,0.06); color:#fff; }
+  .nav-item.active{ background:var(--teal); color:#fff; }
+  .sidebar-foot{ margin-top:auto; font-family:var(--font-mono); font-size:0.72rem; color:#8A8D8D; padding:12px 8px; border-top:1px solid rgba(255,255,255,0.1); }
+  .sidebar-foot button{ color:#C7C9C9; text-decoration:underline; margin-top:6px; font-size:0.72rem; }
+
+  .main{ display:flex; flex-direction:column; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:18px 32px; border-bottom:1px solid var(--surface-2); }
+  .topbar h1{ font-family:var(--font-display); font-size:1.3rem; font-weight:700; letter-spacing:-0.01em; }
+  .topbar .sub{ font-family:var(--font-mono); font-size:0.78rem; color:var(--gray-mid); margin-top:2px; }
+  .top-right{ display:flex; align-items:center; gap:18px; }
+  .live-tag{ display:flex; align-items:center; gap:7px; font-family:var(--font-mono); font-size:0.78rem; color:var(--teal-dark); font-weight:600; background:var(--teal-light); padding:7px 12px; border-radius:100px; }
+  .live-tag .dot{ width:6px; height:6px; border-radius:50%; background:var(--teal); animation:pulse-dot 2s infinite; }
+  .clock{ font-family:var(--font-mono); font-size:0.85rem; color:var(--gray-dark); }
+
+  .content{ padding:26px 32px 50px; display:flex; flex-direction:column; gap:24px; }
+  .view{ display:none; flex-direction:column; gap:24px; }
+  .view.active{ display:flex; }
+
+  .stat-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
+  .stat-card{ background:var(--surface); border:1px solid var(--surface-2); border-radius:14px; padding:18px 20px; }
+  .stat-card .label{ font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid); text-transform:uppercase; letter-spacing:0.04em; }
+  .stat-card .val{ font-family:var(--font-display); font-size:1.7rem; font-weight:700; margin-top:6px; }
+  .stat-card .val.teal{ color:var(--teal); }
+
+  .grid2{ display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start; }
+  .panel{ background:#fff; border:1px solid var(--surface-2); border-radius:16px; overflow:hidden; }
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--surface-2); }
+  .panel-head h2{ font-family:var(--font-display); font-size:1rem; font-weight:600; }
+  .panel-head .count{ font-family:var(--font-mono); font-size:0.75rem; color:var(--gray-mid); }
+
+  .map-svg-wrap{ background:var(--surface); }
+  .path-dash{ stroke-dasharray:4 5; animation:dash 20s linear infinite; }
+  @keyframes dash{ to{ stroke-dashoffset:-200; } }
+  .pulse-ring{ transform-origin:center; animation:ring 2.6s ease-out infinite; }
+  .pulse-ring.d2{ animation-delay:0.9s; } .pulse-ring.d3{ animation-delay:1.7s; }
+  @keyframes ring{ 0%{ r:4; opacity:0.9; } 100%{ r:26; opacity:0; } }
+  .marker{ cursor:pointer; }
+
+  .responder-row{ display:flex; align-items:center; gap:12px; padding:13px 20px; border-bottom:1px solid var(--surface-2); font-size:0.86rem; }
+  .responder-row:last-child{ border-bottom:none; }
+  .r-status{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .r-status.available{ background:var(--teal); }
+  .r-status.enroute{ background:var(--amber); }
+  .r-status.busy, .r-status.offline{ background:var(--gray-light); }
+  .r-name{ font-weight:600; flex:1; }
+  .r-meta{ font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid); }
+
+  .filters{ display:flex; gap:8px; padding:14px 20px 0; }
+  .filter-btn{ font-family:var(--font-mono); font-size:0.75rem; padding:7px 13px; border-radius:100px; border:1px solid var(--surface-2); color:var(--gray-dark); background:#fff; transition:all .15s ease; }
+  .filter-btn.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .report-list{ padding:12px 8px 8px; }
+  .report-row{ display:grid; grid-template-columns:70px minmax(0,1fr) 180px 90px; align-items:center; gap:14px; padding:13px 12px; border-radius:10px; font-size:0.86rem; cursor:pointer; transition:background .12s ease; }
+  .report-row:hover{ background:var(--surface); }
+  .report-row.selected{ background:var(--teal-light); }
+  .report-id{ font-family:var(--font-mono); color:var(--gray-mid); font-size:0.78rem; }
+  .report-main{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .report-loc{ font-weight:600; }
+  .report-loc .type{ display:block; font-weight:400; color:var(--gray-mid); font-size:0.78rem; margin-top:1px; }
+  .report-note{ font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid); }
+  .report-links{ display:flex; gap:14px; flex-wrap:wrap; }
+  .show-map-btn, .show-photos-btn{ cursor:pointer; color:var(--teal); text-decoration:underline; font-size:0.85rem; }
+  .show-photos-btn{ color:var(--amber); }
+  .report-actions{ display:flex; flex-direction:column; gap:6px; }
+  .mini-actions{ display:flex; flex-wrap:wrap; gap:6px; }
+  .mini-action{ border:1px solid var(--surface-2); border-radius:999px; padding:4px 7px; font-size:0.7rem; color:var(--gray-dark); background:#fff; }
+  .mini-action:hover{ border-color:var(--teal); color:var(--teal-dark); background:var(--teal-light); }
+  .badge{ font-family:var(--font-mono); font-size:0.7rem; font-weight:600; padding:4px 9px; border-radius:100px; text-align:center; text-transform:uppercase; letter-spacing:0.02em; }
+  .badge.new{ background:var(--amber-light); color:var(--amber); }
+  .badge.dispatched{ background:var(--teal-light); color:var(--teal-dark); }
+  .badge.enroute{ background:var(--amber-light); color:var(--amber); }
+  .badge.resolved{ background:var(--surface-2); color:var(--gray-mid); }
+  .report-time{ font-family:var(--font-mono); font-size:0.76rem; color:var(--gray-mid); text-align:right; }
+
+  .audit-row{ display:grid; grid-template-columns:130px 1fr 100px; gap:14px; padding:12px 20px; border-bottom:1px solid var(--surface-2); font-size:0.84rem; }
+  .audit-time{ font-family:var(--font-mono); font-size:0.74rem; color:var(--gray-mid); }
+  .audit-actor{ font-family:var(--font-mono); font-size:0.74rem; color:var(--gray-mid); text-align:right; }
+
+  .map-modal, .photos-modal{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
+  .map-modal.show, .photos-modal.show{ display:flex; }
+  .map-modal-content{ background:#fff; border-radius:16px; width:90%; max-width:800px; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
+  .photos-modal-content{ background:#fff; border-radius:16px; width:90%; max-width:640px; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
+  .map-modal-head{ display:flex; justify-content:space-between; align-items:center; padding:18px 24px; border-bottom:1px solid var(--surface-2); }
+  .map-modal-head h2{ font-family:var(--font-display); font-size:1rem; font-weight:600; }
+  .map-modal-close{ cursor:pointer; font-size:1.5rem; color:var(--gray-mid); line-height:1; }
+  .map-modal-close:hover{ color:var(--ink); }
+  #modal-map{ flex:1; min-height:400px; }
+  .map-modal-foot{ padding:14px 24px; border-top:1px solid var(--surface-2); text-align:right; }
+  .map-modal-foot a{ display:inline-block; color:var(--teal); text-decoration:underline; font-size:0.9rem; margin-right:16px; }
+  #photos-grid{ padding:20px 24px; display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; overflow-y:auto; }
+  #photos-grid img{ width:100%; border-radius:10px; display:block; object-fit:cover; aspect-ratio:1; }
+  .photos-loading{ font-family:var(--font-mono); font-size:0.85rem; color:var(--gray-mid); grid-column:1/-1; }
+
+  .auth-gate{ position:fixed; inset:0; background:#fff; display:flex; align-items:center; justify-content:center; z-index:2000; font-family:var(--font-mono); color:var(--gray-mid); }
+  .auth-gate.hidden{ display:none; }
+
+  @media (max-width:980px){
+    .app{ grid-template-columns:1fr; }
+    .sidebar{ display:none; }
+    .grid2{ grid-template-columns:1fr; }
+    .stat-row{ grid-template-columns:repeat(2,1fr); }
+    .report-row{ grid-template-columns:50px 1fr 90px; }
+    .report-time{ display:none; }
+  }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:0.001ms !important; } }
+</style>
+</head>
+<body>
+
+<div class="auth-gate" id="auth-gate">Checking sign-in…</div>
+
+<div class="app" id="app-root" style="display:none;">
+  <aside class="sidebar">
+    <div class="logo"><span class="logo-dot"></span>Signal</div>
+    <a class="nav-item active" data-view="overview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Overview
+    </a>
+    <a class="nav-item" data-view="activity">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Activity log
+    </a>
+    <div class="sidebar-foot">
+      JIMETA SECTOR<br>
+      <span id="operator-email">OPERATOR</span>
+      <button id="logout-btn">Sign out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="view-title">Overview</h1>
+        <div class="sub">Jimeta / Yola sector — Adamawa State</div>
+      </div>
+      <div class="top-right">
+        <span class="live-tag"><span class="dot"></span>LIVE</span>
+        <span class="clock" id="clock">--:--:--</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- OVERVIEW VIEW -->
+      <div class="view active" id="view-overview">
+        <div class="stat-row">
+          <div class="stat-card"><div class="label">Active reports</div><div class="val teal" id="stat-active">0</div></div>
+          <div class="stat-card"><div class="label">Avg. dispatch time</div><div class="val" id="stat-dispatch">00:00</div></div>
+          <div class="stat-card"><div class="label">Responders online</div><div class="val" id="stat-online">0</div></div>
+          <div class="stat-card"><div class="label">Resolved today</div><div class="val" id="stat-resolved">0</div></div>
+        </div>
+
+        <div class="grid2">
+          <div class="panel">
+            <div class="panel-head"><h2>Live map <span style="font-weight:400;color:var(--gray-mid);font-size:0.78rem;">(sector overview)</span></h2><span class="count" id="map-count">0 open incidents</span></div>
+            <div class="map-svg-wrap">
+              <svg viewBox="0 0 480 300" width="100%" style="display:block; height:auto;">
+                <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M 24 0 L 0 0 0 24" fill="none" stroke="#E4E7E7" stroke-width="1"/></pattern></defs>
+                <rect width="480" height="300" fill="#FFFFFF"/>
+                <rect width="480" height="300" fill="url(#grid)"/>
+                <circle cx="240" cy="150" r="7" fill="#1C1F1F"/>
+                <circle cx="240" cy="150" r="12" fill="none" stroke="#1C1F1F" stroke-width="1.5" opacity="0.4"/>
+                <g id="map-markers"></g>
+              </svg>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>Responders</h2><span class="count" id="responder-count">0 online</span></div>
+            <div id="responder-list"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>Reports</h2><span class="count" id="report-count">0 of 0</span></div>
+          <div class="filters" id="filters">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="new">New</button>
+            <button class="filter-btn" data-filter="enroute">En route</button>
+            <button class="filter-btn" data-filter="resolved">Resolved</button>
+          </div>
+          <div class="report-list" id="report-list"></div>
+        </div>
+      </div>
+
+      <!-- ACTIVITY VIEW -->
+      <div class="view" id="view-activity">
+        <div class="panel">
+          <div class="panel-head"><h2>Activity log</h2><span class="count" id="audit-count">0 events</span></div>
+          <div id="audit-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="map-modal" class="map-modal">
+  <div class="map-modal-content">
+    <div class="map-modal-head"><h2>Incident Location Map</h2><span class="map-modal-close" id="map-modal-close">×</span></div>
+    <div id="modal-map"></div>
+    <div class="map-modal-foot"><a id="nav-link" href="#" target="_blank" rel="noopener">Get Directions (Google Maps)</a></div>
+  </div>
+</div>
+
+<div id="photos-modal" class="photos-modal">
+  <div class="photos-modal-content">
+    <div class="map-modal-head"><h2>Reported photos</h2><span class="map-modal-close" id="photos-modal-close">×</span></div>
+    <div id="photos-grid"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script type="module">
+  import { auth, db } from './firebase-init.js';
+  import { signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+  import {
+    collection, query, orderBy, limit, onSnapshot, doc, updateDoc, getDoc, serverTimestamp
+  } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+  import { escapeHtml, getRelativeTime, formatDispatchTime, DISPATCH_CENTER } from './utils.js';
+  import { logAuditEvent } from './dispatch.js';
+
+  const authGate = document.getElementById('auth-gate');
+  const appRoot = document.getElementById('app-root');
+
+  auth.onAuthStateChanged(async (user) => {
+    if (!user || user.isAnonymous) {
+      window.location.href = 'signal-login.html';
+      return;
+    }
+    const staffDoc = await getDoc(doc(db, 'staff', user.uid));
+    if (!staffDoc.exists() || staffDoc.data().role !== 'dispatcher') {
+      authGate.textContent = 'This account is not set up as a dispatcher.';
+      return;
+    }
+    document.getElementById('operator-email').textContent = (staffDoc.data().name || user.email || '').toUpperCase();
+    authGate.classList.add('hidden');
+    appRoot.style.display = 'grid';
+    initDashboard();
+  });
+
+  document.getElementById('logout-btn').addEventListener('click', async () => {
+    await signOut(auth);
+    window.location.href = 'signal-login.html';
+  });
+
+  // ---------------- View switching ----------------
+  document.querySelectorAll('.nav-item[data-view]').forEach((item) => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item[data-view]').forEach((el) => el.classList.remove('active'));
+      item.classList.add('active');
+      document.querySelectorAll('.view').forEach((el) => el.classList.remove('active'));
+      document.getElementById(`view-${item.dataset.view}`).classList.add('active');
+      document.getElementById('view-title').textContent = item.dataset.view === 'overview' ? 'Overview' : 'Activity log';
+    });
+  });
+
+  function tick() {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  }
+  tick(); setInterval(tick, 1000);
+
+  // ---------------- Modals ----------------
+  function wireModalClose(modal, closeBtnId) {
+    document.getElementById(closeBtnId).addEventListener('click', () => modal.classList.remove('show'));
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('show'); });
+  }
+  const mapModal = document.getElementById('map-modal');
+  const photosModal = document.getElementById('photos-modal');
+  wireModalClose(mapModal, 'map-modal-close');
+  wireModalClose(photosModal, 'photos-modal-close');
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { mapModal.classList.remove('show'); photosModal.classList.remove('show'); } });
+
+  let modalMapInstance = null;
+  function showMapModal(report) {
+    const hasCoords = typeof report.lat === 'number' && typeof report.lon === 'number';
+    const lat = hasCoords ? report.lat : DISPATCH_CENTER.lat;
+    const lon = hasCoords ? report.lon : DISPATCH_CENTER.lon;
+
+    if (!modalMapInstance) {
+      modalMapInstance = L.map('modal-map').setView([lat, lon], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(modalMapInstance);
+    }
+    modalMapInstance.setView([lat, lon], 14);
+    if (modalMapInstance._marker) modalMapInstance.removeLayer(modalMapInstance._marker);
+    const note = hasCoords ? '' : '<br><em>Approximate — no GPS on file</em>';
+    modalMapInstance._marker = L.circleMarker([lat, lon], { radius: 8, fillColor: report.urgency === 'critical' ? '#D64545' : report.urgency === 'moderate' ? '#C98A2E' : '#05AD98', color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.8 })
+      .bindPopup(`<strong>${escapeHtml(report.type)}</strong><br>${escapeHtml(report.location)}${note}`).addTo(modalMapInstance);
+
+    document.getElementById('nav-link').href = hasCoords
+      ? `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`
+      : `https://www.google.com/maps/search/${encodeURIComponent(report.location)}`;
+    mapModal.classList.add('show');
+    setTimeout(() => modalMapInstance.invalidateSize(), 50);
+  }
+
+  function showPhotosModal(photos) {
+    const grid = document.getElementById('photos-grid');
+    grid.innerHTML = photos && photos.length
+      ? photos.map((src) => `<img src="${src}" alt="Incident photo">`).join('')
+      : '<p class="photos-loading">No photos on this report.</p>';
+    photosModal.classList.add('show');
+  }
+
+  // ---------------- Dashboard state (populated by Firestore listeners) ----------------
+  let reports = [];
+  let responders = [];
+  let activeFilter = 'all';
+
+  function renderStats() {
+    const activeCount = reports.filter((r) => r.status !== 'resolved').length;
+    const avgMinutes = reports.length
+      ? Math.round(reports.reduce((sum, r) => sum + (r.dispatchTimeMinutes || 0), 0) / reports.length)
+      : 0;
+    const onlineCount = responders.filter((r) => r.status !== 'offline').length;
+    const todayStr = new Date().toDateString();
+    const resolvedToday = reports.filter((r) => r.status === 'resolved' && r.updatedAt && new Date(r.updatedAt.toMillis ? r.updatedAt.toMillis() : r.updatedAt).toDateString() === todayStr).length;
+
+    document.getElementById('stat-active').textContent = activeCount;
+    document.getElementById('stat-dispatch').textContent = formatDispatchTime(avgMinutes);
+    document.getElementById('stat-online').textContent = onlineCount;
+    document.getElementById('stat-resolved').textContent = resolvedToday;
+    document.getElementById('map-count').textContent = `${activeCount} open incident${activeCount === 1 ? '' : 's'}`;
+    document.getElementById('responder-count').textContent = `${onlineCount} online`;
+  }
+
+  function renderResponders() {
+    document.getElementById('responder-list').innerHTML = responders.map((r) => {
+      const statusClass = ['available', 'enroute', 'busy', 'offline'].includes(r.status) ? r.status : 'busy';
+      const meta = r.currentReportId ? `assigned · #${r.currentReportId.slice(-6).toUpperCase()}` : 'ready';
+      return `<div class="responder-row"><span class="r-status ${statusClass}"></span><span class="r-name">${escapeHtml(r.name)}</span><span class="r-meta">${escapeHtml(meta)}</span></div>`;
+    }).join('');
+  }
+
+  function renderMap() {
+    const markers = document.getElementById('map-markers');
+    const positions = [{ x: 120, y: 90 }, { x: 340, y: 70 }, { x: 360, y: 220 }, { x: 100, y: 220 }, { x: 240, y: 110 }, { x: 280, y: 190 }];
+    const active = reports.filter((r) => r.status !== 'resolved');
+    markers.innerHTML = active.map((r, i) => {
+      const pos = positions[i % positions.length];
+      const fill = r.urgency === 'critical' ? '#D64545' : r.urgency === 'moderate' ? '#C98A2E' : '#05AD98';
+      return `<g class="marker" data-id="${escapeHtml(r.id)}"><circle cx="${pos.x}" cy="${pos.y}" r="4" fill="${fill}" class="pulse-ring"/><circle cx="${pos.x}" cy="${pos.y}" r="5" fill="${fill}"/></g>`;
+    }).join('');
+    markers.querySelectorAll('.marker').forEach((m) => {
+      m.addEventListener('click', () => {
+        const report = reports.find((r) => r.id === m.dataset.id);
+        if (report) showMapModal(report);
+      });
+    });
+  }
+
+  function renderReports() {
+    const filtered = activeFilter === 'all' ? reports : reports.filter((r) => r.status === activeFilter);
+    document.getElementById('report-count').textContent = `${filtered.length} of ${reports.length}`;
+    document.getElementById('report-list').innerHTML = filtered.map((r) => `
+      <div class="report-row" data-id="${escapeHtml(r.id)}">
+        <span class="report-id">#${escapeHtml(r.id.slice(-6).toUpperCase())}</span>
+        <div class="report-main">
+          <span class="report-loc">${escapeHtml(r.location)}<span class="type">${escapeHtml(r.type)}</span></span>
+          <span class="report-note">${escapeHtml(r.description || 'No additional notes')}</span>
+          <span class="report-links">
+            <span class="show-map-btn" data-id="${escapeHtml(r.id)}">📍 View map</span>
+            ${r.photos && r.photos.length ? `<span class="show-photos-btn" data-id="${escapeHtml(r.id)}">📷 ${r.photos.length} photo${r.photos.length > 1 ? 's' : ''}</span>` : ''}
+          </span>
+        </div>
+        <div class="report-actions">
+          <span class="badge ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span>
+          <div class="mini-actions">
+            <button class="mini-action" data-id="${escapeHtml(r.id)}" data-action="dispatched">Dispatch</button>
+            <button class="mini-action" data-id="${escapeHtml(r.id)}" data-action="enroute">En route</button>
+            <button class="mini-action" data-id="${escapeHtml(r.id)}" data-action="resolved">Resolve</button>
+          </div>
+        </div>
+        <span class="report-time">${r.createdAt ? escapeHtml(getRelativeTime(r.createdAt.toMillis ? r.createdAt.toMillis() : r.createdAt)) : '—'}</span>
+      </div>
+    `).join('');
+  }
+
+  function renderAll() { renderStats(); renderResponders(); renderMap(); renderReports(); }
+
+  async function updateReportStatus(reportId, status) {
+    const reportRef = doc(db, 'reports', reportId);
+    await updateDoc(reportRef, { status, updatedAt: serverTimestamp() });
+    await logAuditEvent(reportId, 'status_changed', auth.currentUser.email, `-> ${status}`);
+    if (status === 'resolved') {
+      const report = reports.find((r) => r.id === reportId);
+      if (report && report.responderId) {
+        await updateDoc(doc(db, 'responders', report.responderId), { status: 'available', currentReportId: null });
+      }
+    }
+  }
+
+  function initDashboard() {
+    onSnapshot(query(collection(db, 'reports'), orderBy('createdAt', 'desc')), (snapshot) => {
+      reports = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderAll();
+    });
+
+    onSnapshot(collection(db, 'responders'), (snapshot) => {
+      responders = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderAll();
+    });
+
+    onSnapshot(query(collection(db, 'audit_log'), orderBy('timestamp', 'desc'), limit(50)), (snapshot) => {
+      const entries = snapshot.docs.map((d) => d.data());
+      document.getElementById('audit-count').textContent = `${entries.length} events`;
+      document.getElementById('audit-list').innerHTML = entries.map((e) => `
+        <div class="audit-row">
+          <span class="audit-time">${e.timestamp ? escapeHtml(getRelativeTime(e.timestamp.toMillis())) : '—'}</span>
+          <span>${escapeHtml(e.action)} — ${escapeHtml(e.details || '')} <span style="color:var(--gray-mid)">(#${escapeHtml((e.reportId || '').slice(-6).toUpperCase())})</span></span>
+          <span class="audit-actor">${escapeHtml(e.actor || 'system')}</span>
+        </div>
+      `).join('') || '<p class="photos-loading" style="padding:16px 20px;">No activity yet.</p>';
+    });
+
+    document.querySelectorAll('.filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeFilter = btn.dataset.filter;
+        renderReports();
+      });
+    });
+
+    document.getElementById('report-list').addEventListener('click', (event) => {
+      const mapBtn = event.target.closest('.show-map-btn');
+      if (mapBtn) {
+        const report = reports.find((r) => r.id === mapBtn.dataset.id);
+        if (report) showMapModal(report);
+        return;
+      }
+      const photosBtn = event.target.closest('.show-photos-btn');
+      if (photosBtn) {
+        const report = reports.find((r) => r.id === photosBtn.dataset.id);
+        showPhotosModal(report ? report.photos : []);
+        return;
+      }
+      const actionBtn = event.target.closest('.mini-action');
+      if (actionBtn) {
+        updateReportStatus(actionBtn.dataset.id, actionBtn.dataset.action);
+      }
+    });
+  }
+</script>
+</body>
+</html>
