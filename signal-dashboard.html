@@ -6,58 +6,87 @@
 <title>Signal — Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 <style>
   :root{
-    --bg:#FFFFFF; --surface:#F4F6F6; --surface-2:#EDEFEF;
-    --gray-light:#BBBFBF; --gray-mid:#878787; --gray-dark:#4A4D4D; --ink:#1C1F1F;
-    --teal:#05AD98; --teal-dark:#048572; --teal-light:#E4F7F4;
-    --amber:#C98A2E; --amber-light:#FBF1E1;
+    --bg:#EAEEF3; --surface:#FFFFFF; --surface-2:#E4ECF5; --surface-3:#F6F9FB;
+    --ink:#111827; --ink-soft:#4B5563; --ink-muted:#6B7280;
+    --accent:#14B47F; --accent-dark:#0F8D68; --accent-soft:#E6F8F0;
+    --warn:#D04444; --warn-soft:#F9E7E7;
     --font-display:'Space Grotesk', sans-serif; --font-body:'Inter', sans-serif; --font-mono:'IBM Plex Mono', monospace;
   }
+
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{ font-family:var(--font-body); color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; }
+  body{ min-height:100vh; font-family:var(--font-body); color:var(--ink); background:linear-gradient(180deg, #F4F7FA 0%, #EAEEF3 100%); -webkit-font-smoothing:antialiased; }
+  html{ scroll-behavior:smooth; }
   a{color:inherit; text-decoration:none;}
   button{font-family:inherit; cursor:pointer; border:none; background:none;}
+  img, svg, video{max-width:100%; display:block;}
 
-  .app{ display:grid; grid-template-columns:232px 1fr; min-height:100vh; }
-  .sidebar{ background:var(--ink); color:#fff; padding:24px 18px; display:flex; flex-direction:column; }
-  .logo{ display:flex; align-items:center; gap:9px; font-family:var(--font-display); font-weight:700; font-size:1.15rem; padding:6px 8px 28px; }
-  .logo-dot{ width:9px; height:9px; border-radius:50%; background:var(--teal); box-shadow:0 0 0 0 rgba(5,173,152,0.5); animation:pulse-dot 2.2s infinite; }
-  @keyframes pulse-dot{ 0%{box-shadow:0 0 0 0 rgba(5,173,152,0.45);} 70%{box-shadow:0 0 0 8px rgba(5,173,152,0);} 100%{box-shadow:0 0 0 0 rgba(5,173,152,0);} }
-  .nav-item{ display:flex; align-items:center; gap:11px; padding:11px 12px; border-radius:9px; color:#C7C9C9; font-size:0.9rem; font-weight:500; margin-bottom:2px; transition:background .15s ease, color .15s ease; cursor:pointer; }
-  .nav-item svg{ width:17px; height:17px; flex-shrink:0; }
-  .nav-item:hover{ background:rgba(255,255,255,0.06); color:#fff; }
-  .nav-item.active{ background:var(--teal); color:#fff; }
-  .sidebar-foot{ margin-top:auto; font-family:var(--font-mono); font-size:0.72rem; color:#8A8D8D; padding:12px 8px; border-top:1px solid rgba(255,255,255,0.1); }
-  .sidebar-foot button{ color:#C7C9C9; text-decoration:underline; margin-top:6px; font-size:0.72rem; }
+  .app{ display:block; min-height:100vh; }
+  .sidebar{ background:#0E1723; color:#E6F1F8; padding:32px 24px; display:flex; flex-direction:column; box-shadow:2px 0 20px rgba(15,23,42,0.08); position:fixed; top:0; left:0; width:260px; height:100vh; z-index:2; }
+  .logo{ display:flex; align-items:center; gap:10px; font-family:var(--font-display); font-weight:700; font-size:1.15rem; padding-bottom:30px; letter-spacing:-0.03em; }
+  .logo-dot{ width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 0 rgba(20,180,127,0.45); animation:pulse-dot 2.2s infinite; }
+  .main{ display:flex; flex-direction:column; margin-left:260px; width:calc(100% - 260px); }
+  @keyframes pulse-dot{ 0%{box-shadow:0 0 0 0 rgba(20,180,127,0.45);} 70%{box-shadow:0 0 0 8px rgba(20,180,127,0);} 100%{box-shadow:0 0 0 0 rgba(20,180,127,0);} }
+
+  .nav-item{ display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:14px; color:#B8C7D6; font-size:0.94rem; font-weight:600; margin-bottom:8px; transition:all .18s ease; }
+  .nav-item i{ width:18px; display:inline-flex; justify-content:center; }
+  .nav-item:hover{ background:rgba(255,255,255,0.08); color:#F8FBFF; }
+  .nav-item.active{ background:rgba(20,180,127,0.16); color:#FFFFFF; box-shadow: inset 0 0 0 1px rgba(20,180,127,0.12); border-left:4px solid var(--accent); padding-left:12px; }
+
+  .sidebar-foot{ margin-top:auto; font-family:var(--font-mono); font-size:0.72rem; color:#94A3B8; padding-top:20px; border-top:1px solid rgba(255,255,255,0.08); line-height:1.5; }
+  .sidebar-foot button{ display:inline-flex; margin-top:10px; font-size:0.72rem; color:#A5B8CE; text-decoration:underline; }
 
   .main{ display:flex; flex-direction:column; }
-  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:18px 32px; border-bottom:1px solid var(--surface-2); }
-  .topbar h1{ font-family:var(--font-display); font-size:1.3rem; font-weight:700; letter-spacing:-0.01em; }
-  .topbar .sub{ font-family:var(--font-mono); font-size:0.78rem; color:var(--gray-mid); margin-top:2px; }
-  .top-right{ display:flex; align-items:center; gap:18px; }
-  .live-tag{ display:flex; align-items:center; gap:7px; font-family:var(--font-mono); font-size:0.78rem; color:var(--teal-dark); font-weight:600; background:var(--teal-light); padding:7px 12px; border-radius:100px; }
-  .live-tag .dot{ width:6px; height:6px; border-radius:50%; background:var(--teal); animation:pulse-dot 2s infinite; }
-  .clock{ font-family:var(--font-mono); font-size:0.85rem; color:var(--gray-dark); }
-
-  .content{ padding:26px 32px 50px; display:flex; flex-direction:column; gap:24px; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:20px; padding:24px 28px; background:var(--surface); border:1px solid var(--surface-2); border-radius:12px; box-shadow:0 18px 40px rgba(15,23,42,0.08); }
+  .topbar-left{ display:flex; flex-direction:column; gap:8px; max-width:62%; }
+  .topbar h1{ font-family:var(--font-display); font-size:2rem; font-weight:800; letter-spacing:-0.03em; line-height:1.05; margin:0; }
+  .topbar .sub{ font-family:var(--font-mono); font-size:0.92rem; color:var(--ink-muted); margin:0; }
+  .ops-card{ display:flex; align-items:center; gap:16px; padding:12px 16px; border-radius:12px; border:1px solid var(--surface-2); background:#fff; box-shadow:0 12px 28px rgba(15,23,42,0.06); }
+  .ops-details{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .operator-badge{ display:inline-flex; align-items:center; gap:10px; background:var(--surface-3); border-radius:999px; padding:8px 12px; font-family:var(--font-mono); font-size:0.82rem; color:var(--ink-soft); }
+  .operator-sigil{ width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:var(--accent); color:#fff; font-size:0.75rem; font-weight:700; }
+  .ops-label{ font-family:var(--font-mono); font-size:0.79rem; color:var(--ink-muted); }
+  .ops-actions{ display:flex; align-items:center; gap:12px; }
+  .ops-clock{ font-family:var(--font-mono); font-size:0.92rem; color:var(--ink); padding:8px 12px; border-radius:999px; border:1px solid var(--surface-2); background:var(--surface-3); min-width:108px; text-align:center; }
+  .notification-btn{ display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:12px; background:var(--surface-3); color:var(--ink-dark); font-size:1.3rem; border:1px solid var(--surface-2); cursor:pointer; }
+  .notification-btn:hover{ background:#F5F8FB; }
+  .material-symbols-outlined{ font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  .content{ padding:0 32px 40px; display:flex; flex-direction:column; gap:24px; }
   .view{ display:none; flex-direction:column; gap:24px; }
   .view.active{ display:flex; }
 
-  .stat-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
-  .stat-card{ background:var(--surface); border:1px solid var(--surface-2); border-radius:14px; padding:18px 20px; }
-  .stat-card .label{ font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid); text-transform:uppercase; letter-spacing:0.04em; }
-  .stat-card .val{ font-family:var(--font-display); font-size:1.7rem; font-weight:700; margin-top:6px; }
-  .stat-card .val.teal{ color:var(--teal); }
+  .stat-row{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:18px; }
+  .stat-card{ background:#ffffff; border:1px solid #E5E7EB; border-radius:14px; padding:20px 18px; box-shadow:0 6px 24px rgba(15,23,42,0.06); display:flex; flex-direction:column; justify-content:space-between; min-height:190px; transition:transform .18s ease, box-shadow .18s ease; }
+  .stat-card:hover{ transform:translateY(-4px); box-shadow:0 14px 34px rgba(15,23,42,0.12); }
+  .stat-top{ display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+  .stat-icon{ width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--accent); color:#FFFFFF; flex-shrink:0; }
+  .stat-icon i{ font-size:0.95rem; line-height:1; }
+  .stat-icon.stat-icon-red{ background:#DC2626; }
+  .stat-icon.stat-icon-green{ background:#16A34A; }
+  .stat-icon.stat-icon-blue{ background:#0EA5E9; }
+  .stat-icon.stat-icon-gray{ background:#9CA3AF; }
+  .stat-card .label{ font-family:var(--font-mono); font-size:0.72rem; color:var(--ink-muted); text-transform:uppercase; letter-spacing:0.16em; font-weight:700; }
+  .stat-card .val{ font-family:var(--font-display); font-size:2.5rem; font-weight:800; margin-top:6px; letter-spacing:-0.04em; color:var(--ink); line-height:1; }
+  .stat-card .val.teal{ color:var(--accent); }
+  .stat-desc{ font-family:var(--font-mono); font-size:0.75rem; color:var(--ink-soft); margin-top:18px; line-height:1.4; }
+  .stat-card[data-desc] .stat-desc{ color:var(--ink-muted); }
+  .stat-card .label + .val{ margin-top:0; }
+  .stat-card .stat-icon + .label{ margin:0; }
 
-  .grid2{ display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start; }
-  .panel{ background:#fff; border:1px solid var(--surface-2); border-radius:16px; overflow:hidden; }
-  .panel-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--surface-2); }
-  .panel-head h2{ font-family:var(--font-display); font-size:1rem; font-weight:600; }
-  .panel-head .count{ font-family:var(--font-mono); font-size:0.75rem; color:var(--gray-mid); }
+  .grid2{ display:grid; grid-template-columns:1.45fr 1fr; gap:22px; align-items:start; }
+  .panel{ background:var(--surface); border:1px solid var(--surface-2); border-radius:18px; overflow:hidden; box-shadow:0 16px 40px rgba(15,23,42,0.06); }
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:20px 22px; border-bottom:1px solid var(--surface-2); }
+  .panel-head h2{ font-family:var(--font-display); font-size:1rem; font-weight:700; letter-spacing:-0.02em; }
+  .panel-head .count{ font-family:var(--font-mono); font-size:0.78rem; color:var(--ink-muted); }
 
-  .map-svg-wrap{ background:var(--surface); }
+  .map-svg-wrap{ background:var(--surface-3); padding:20px; }
+  #overview-map{ width:100%; min-height:300px; height:300px; border-radius:14px; }
   .path-dash{ stroke-dasharray:4 5; animation:dash 20s linear infinite; }
   @keyframes dash{ to{ stroke-dashoffset:-200; } }
   .pulse-ring{ transform-origin:center; animation:ring 2.6s ease-out infinite; }
@@ -65,70 +94,110 @@
   @keyframes ring{ 0%{ r:4; opacity:0.9; } 100%{ r:26; opacity:0; } }
   .marker{ cursor:pointer; }
 
-  .responder-row{ display:flex; align-items:center; gap:12px; padding:13px 20px; border-bottom:1px solid var(--surface-2); font-size:0.86rem; }
+  .responder-row{ display:flex; align-items:center; gap:12px; padding:16px 22px; border-bottom:1px solid var(--surface-2); font-size:0.9rem; }
   .responder-row:last-child{ border-bottom:none; }
-  .r-status{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-  .r-status.available{ background:var(--teal); }
-  .r-status.enroute{ background:var(--amber); }
-  .r-status.busy, .r-status.offline{ background:var(--gray-light); }
+  .r-status{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .r-status.available{ background:var(--accent); }
+  .r-status.enroute{ background:var(--warn); }
+  .r-status.busy, .r-status.offline{ background:var(--ink-muted); }
   .r-name{ font-weight:600; flex:1; }
-  .r-meta{ font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid); }
+  .r-meta{ font-family:var(--font-mono); font-size:0.75rem; color:var(--ink-muted); }
 
-  .filters{ display:flex; gap:8px; padding:14px 20px 0; }
-  .filter-btn{ font-family:var(--font-mono); font-size:0.75rem; padding:7px 13px; border-radius:100px; border:1px solid var(--surface-2); color:var(--gray-dark); background:#fff; transition:all .15s ease; }
-  .filter-btn.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
-  .report-list{ padding:12px 8px 8px; }
-  .report-row{ display:grid; grid-template-columns:70px minmax(0,1fr) 180px 90px; align-items:center; gap:14px; padding:13px 12px; border-radius:10px; font-size:0.86rem; cursor:pointer; transition:background .12s ease; }
-  .report-row:hover{ background:var(--surface); }
-  .report-row.selected{ background:var(--teal-light); }
-  .report-id{ font-family:var(--font-mono); color:var(--gray-mid); font-size:0.78rem; }
+  .filters{ display:flex; gap:10px; padding:18px 22px 0; }
+  .filter-btn{ font-family:var(--font-mono); font-size:0.78rem; padding:10px 14px; border-radius:999px; border:1px solid var(--surface-2); color:var(--ink); background:var(--surface); transition:all .15s ease; }
+  .filter-btn.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .report-list{ padding:14px 8px 14px; }
+  .report-row{ display:grid; grid-template-columns:72px minmax(0,1fr) 180px 100px; align-items:center; gap:14px; padding:16px 16px 16px 14px; border-radius:14px; border-left:5px solid transparent; background:var(--surface); font-size:0.9rem; cursor:pointer; transition:background .18s ease, border-color .18s ease, transform .18s ease; }
+  .report-row:hover{ background:var(--surface-3); transform:translateY(-1px); }
+  .report-row.selected{ background:var(--accent-soft); }
+  .report-row.critical{ border-left-color:#DC2626; }
+  .report-row.moderate{ border-left-color:#D97706; }
+  .report-row.low{ border-left-color:#16A34A; }
+  .report-id{ font-family:var(--font-mono); color:var(--ink-muted); font-size:0.78rem; }
   .report-main{ display:flex; flex-direction:column; gap:4px; min-width:0; }
-  .report-loc{ font-weight:600; }
-  .report-loc .type{ display:block; font-weight:400; color:var(--gray-mid); font-size:0.78rem; margin-top:1px; }
-  .report-note{ font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid); }
-  .report-links{ display:flex; gap:14px; flex-wrap:wrap; }
-  .show-map-btn, .show-photos-btn{ cursor:pointer; color:var(--teal); text-decoration:underline; font-size:0.85rem; }
-  .show-photos-btn{ color:var(--amber); }
+  .report-loc{ font-weight:700; color:var(--ink); }
+  .report-loc .type{ display:block; font-weight:500; color:var(--ink-muted); font-size:0.78rem; margin-top:1px; }
+  .report-note{ font-family:var(--font-mono); font-size:0.76rem; color:var(--ink-muted); }
+  .report-links{ display:flex; gap:12px; flex-wrap:wrap; }
+  .show-map-btn, .show-photos-btn{ cursor:pointer; color:var(--accent); text-decoration:underline; font-size:0.86rem; }
+  .show-photos-btn{ color:#C98A2E; }
   .report-actions{ display:flex; flex-direction:column; gap:6px; }
   .mini-actions{ display:flex; flex-wrap:wrap; gap:6px; }
-  .mini-action{ border:1px solid var(--surface-2); border-radius:999px; padding:4px 7px; font-size:0.7rem; color:var(--gray-dark); background:#fff; }
-  .mini-action:hover{ border-color:var(--teal); color:var(--teal-dark); background:var(--teal-light); }
-  .badge{ font-family:var(--font-mono); font-size:0.7rem; font-weight:600; padding:4px 9px; border-radius:100px; text-align:center; text-transform:uppercase; letter-spacing:0.02em; }
-  .badge.new{ background:var(--amber-light); color:var(--amber); }
-  .badge.dispatched{ background:var(--teal-light); color:var(--teal-dark); }
-  .badge.enroute{ background:var(--amber-light); color:var(--amber); }
-  .badge.resolved{ background:var(--surface-2); color:var(--gray-mid); }
-  .report-time{ font-family:var(--font-mono); font-size:0.76rem; color:var(--gray-mid); text-align:right; }
+  .mini-action{ border:1px solid var(--surface-2); border-radius:999px; padding:6px 10px; font-size:0.72rem; color:var(--ink-muted); background:var(--surface); }
+  .mini-action:hover{ border-color:var(--accent); color:var(--accent-dark); background:var(--accent-soft); }
+  .badge{ font-family:var(--font-mono); font-size:0.7rem; font-weight:700; padding:5px 10px; border-radius:999px; text-align:center; text-transform:uppercase; letter-spacing:0.06em; }
+  .badge.new{ background:rgba(201,138,46,0.14); color:#C98A2E; }
+  .badge.dispatched{ background:var(--accent-soft); color:var(--accent-dark); }
+  .badge.enroute{ background:rgba(201,138,46,0.15); color:#C98A2E; }
+  .badge.resolved{ background:var(--surface-2); color:var(--ink-muted); }
+  .report-time{ font-family:var(--font-mono); font-size:0.76rem; color:var(--ink-muted); text-align:right; }
 
-  .audit-row{ display:grid; grid-template-columns:130px 1fr 100px; gap:14px; padding:12px 20px; border-bottom:1px solid var(--surface-2); font-size:0.84rem; }
-  .audit-time{ font-family:var(--font-mono); font-size:0.74rem; color:var(--gray-mid); }
-  .audit-actor{ font-family:var(--font-mono); font-size:0.74rem; color:var(--gray-mid); text-align:right; }
+  .audit-row{ display:grid; grid-template-columns:150px 1fr 120px; gap:16px; padding:16px 22px; border-bottom:1px solid var(--surface-2); font-size:0.87rem; }
+  .audit-row:last-child{ border-bottom:none; }
+  .audit-time, .audit-actor{ font-family:var(--font-mono); font-size:0.76rem; color:var(--ink-muted); }
+  .audit-actor{ text-align:right; }
 
-  .map-modal, .photos-modal{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
+  .details-backdrop{ display:none; position:fixed; inset:0; background:rgba(15,23,42,0.45); z-index:1100; align-items:flex-start; justify-content:flex-end; padding:24px; overflow-y:auto; }
+  .details-backdrop.show{ display:flex; }
+  .details-panel{ background:var(--surface); border-radius:20px; width:min(420px,100%); max-width:420px; min-width:360px; max-height:calc(100vh - 48px); box-shadow:0 28px 80px rgba(15,23,42,0.18); transform:translateX(100%); opacity:0; transition:transform .28s ease, opacity .28s ease; display:flex; flex-direction:column; }
+  .details-backdrop.show .details-panel{ transform:translateX(0); opacity:1; }
+  .details-panel-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:24px 24px 0; }
+  .details-panel-head h2{ font-family:var(--font-display); font-size:1.3rem; font-weight:700; margin:0; }
+  .details-subtitle{ margin:8px 0 0; font-family:var(--font-mono); font-size:0.82rem; color:var(--ink-muted); }
+  .details-close{ font-size:1.5rem; line-height:1; color:var(--ink-muted); background:none; border:none; cursor:pointer; padding:8px; }
+  .details-close:hover{ color:var(--ink); }
+  .details-panel-body{ padding:20px 24px 0; overflow-y:auto; }
+  .details-row{ display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:18px; }
+  .details-item{ display:flex; flex-direction:column; gap:6px; }
+  .details-label{ font-family:var(--font-mono); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.16em; color:var(--ink-muted); font-weight:700; }
+  .details-value{ font-family:var(--font-body); font-size:0.96rem; color:var(--ink); line-height:1.4; }
+  .details-value img{ width:100%; border-radius:14px; object-fit:cover; max-height:220px; }
+  .details-panel-footer{ display:grid; gap:12px; padding:20px 24px 24px; }
+  .details-btn{ width:100%; border:none; border-radius:14px; padding:14px 16px; font-family:var(--font-mono); font-size:0.9rem; font-weight:700; background:var(--surface-3); color:var(--ink-muted); cursor:not-allowed; }
+  .details-btn:not(:disabled){ cursor:pointer; }
+  .details-btn:disabled{ opacity:0.85; }
+  .details-photo-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:10px; }
+  .photo-thumb-button{ border:1px solid var(--surface-2); border-radius:14px; overflow:hidden; background:var(--surface); padding:0; cursor:pointer; }
+  .photo-thumb-button img{ width:100%; display:block; }
+  .assign-list{ padding:20px 28px; display:grid; gap:10px; }
+  .assign-row{ border:1px solid var(--surface-2); border-radius:16px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; background:var(--surface); }
+  .assign-row.selected{ border-color:var(--accent); background:var(--surface-3); }
+  .assign-row .assign-name{ font-weight:700; }
+  .assign-row .assign-meta{ font-family:var(--font-mono); font-size:0.82rem; color:var(--ink-muted); }
+  .details-panel-body p{ margin:0; }
+  .details-panel-body .details-photo{ margin-top:12px; }
+  .map-modal, .photos-modal{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center; padding:24px; }
   .map-modal.show, .photos-modal.show{ display:flex; }
-  .map-modal-content{ background:#fff; border-radius:16px; width:90%; max-width:800px; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
-  .photos-modal-content{ background:#fff; border-radius:16px; width:90%; max-width:640px; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
-  .map-modal-head{ display:flex; justify-content:space-between; align-items:center; padding:18px 24px; border-bottom:1px solid var(--surface-2); }
-  .map-modal-head h2{ font-family:var(--font-display); font-size:1rem; font-weight:600; }
-  .map-modal-close{ cursor:pointer; font-size:1.5rem; color:var(--gray-mid); line-height:1; }
+  .map-modal-content, .photos-modal-content{ background:var(--surface); border-radius:20px; width:100%; max-width:880px; max-height:84vh; display:flex; flex-direction:column; box-shadow:0 22px 60px rgba(15,23,42,0.16); }
+  .map-modal-head{ display:flex; justify-content:space-between; align-items:center; padding:22px 28px; border-bottom:1px solid var(--surface-2); }
+  .map-modal-head h2{ font-family:var(--font-display); font-size:1.05rem; font-weight:700; }
+  .map-modal-close{ cursor:pointer; font-size:1.6rem; color:var(--ink-muted); line-height:1; }
   .map-modal-close:hover{ color:var(--ink); }
-  #modal-map{ flex:1; min-height:400px; }
-  .map-modal-foot{ padding:14px 24px; border-top:1px solid var(--surface-2); text-align:right; }
-  .map-modal-foot a{ display:inline-block; color:var(--teal); text-decoration:underline; font-size:0.9rem; margin-right:16px; }
-  #photos-grid{ padding:20px 24px; display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; overflow-y:auto; }
-  #photos-grid img{ width:100%; border-radius:10px; display:block; object-fit:cover; aspect-ratio:1; }
-  .photos-loading{ font-family:var(--font-mono); font-size:0.85rem; color:var(--gray-mid); grid-column:1/-1; }
+  #modal-map{ flex:1; min-height:420px; }
+  .map-modal-foot{ padding:18px 28px; border-top:1px solid var(--surface-2); text-align:right; }
+  .map-modal-foot a{ display:inline-block; color:var(--accent); text-decoration:underline; font-size:0.92rem; margin-right:16px; }
+  #photos-grid{ padding:24px; display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:14px; overflow-y:auto; }
+  #photos-grid img{ width:100%; border-radius:14px; display:block; object-fit:cover; aspect-ratio:1; }
+  .photos-loading{ font-family:var(--font-mono); font-size:0.86rem; color:var(--ink-muted); grid-column:1/-1; }
 
-  .auth-gate{ position:fixed; inset:0; background:#fff; display:flex; align-items:center; justify-content:center; z-index:2000; font-family:var(--font-mono); color:var(--gray-mid); }
+  .auth-gate{ position:fixed; inset:0; background:var(--surface); display:flex; align-items:center; justify-content:center; z-index:2000; font-family:var(--font-mono); color:var(--ink-muted); }
   .auth-gate.hidden{ display:none; }
 
   @media (max-width:980px){
     .app{ grid-template-columns:1fr; }
     .sidebar{ display:none; }
+    .topbar{ padding:18px 20px 16px; }
+    .content{ padding:0 20px 30px; }
     .grid2{ grid-template-columns:1fr; }
     .stat-row{ grid-template-columns:repeat(2,1fr); }
     .report-row{ grid-template-columns:50px 1fr 90px; }
     .report-time{ display:none; }
+  }
+  @media (max-width:680px){
+    .stat-row{ grid-template-columns:1fr; }
+    .top-right{ flex-wrap:wrap; justify-content:flex-start; }
+    .panel-head{ flex-direction:column; align-items:flex-start; gap:10px; }
+    .filters{ flex-wrap:wrap; }
   }
   @media (prefers-reduced-motion: reduce){ *{ animation-duration:0.001ms !important; } }
 </style>
@@ -140,12 +209,10 @@
 <div class="app" id="app-root" style="display:none;">
   <aside class="sidebar">
     <div class="logo"><span class="logo-dot"></span>Signal</div>
-    <a class="nav-item active" data-view="overview">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Overview
-    </a>
-    <a class="nav-item" data-view="activity">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Activity log
-    </a>
+    <a class="nav-item active" href="#overview-panel" data-view="overview"><i class="fa-solid fa-gauge-high"></i>Dashboard</a>
+    <a class="nav-item" href="#report-panel" data-view="overview"><i class="fa-solid fa-clipboard-list"></i>Reports</a>
+    <a class="nav-item" href="#responders-panel" data-view="overview"><i class="fa-solid fa-people-group"></i>Responders</a>
+    <a class="nav-item" href="#activity-panel" data-view="activity"><i class="fa-solid fa-list-check"></i>Audit log</a>
     <div class="sidebar-foot">
       JIMETA SECTOR<br>
       <span id="operator-email">OPERATOR</span>
@@ -155,13 +222,19 @@
 
   <div class="main">
     <div class="topbar">
-      <div>
-        <h1 id="view-title">Overview</h1>
-        <div class="sub">Jimeta / Yola sector — Adamawa State</div>
+      <div class="topbar-left">
+        <h1 id="view-title">Emergency Operations Center</h1>
+        <div class="sub">Signal dispatch command center — Jimeta / Yola sector</div>
       </div>
-      <div class="top-right">
-        <span class="live-tag"><span class="dot"></span>LIVE</span>
-        <span class="clock" id="clock">--:--:--</span>
+      <div class="ops-card">
+        <div class="ops-details">
+          <div class="operator-badge"><span class="operator-sigil">OP</span>Operator</div>
+          <div class="ops-label">17 JUL 2026 · 17:45 UTC</div>
+        </div>
+        <div class="ops-actions">
+          <div class="ops-clock" id="clock">--:--:--</div>
+          <button type="button" class="notification-btn" aria-label="Notifications"><span class="material-symbols-outlined">notifications</span></button>
+        </div>
       </div>
     </div>
 
@@ -169,35 +242,44 @@
       <!-- OVERVIEW VIEW -->
       <div class="view active" id="view-overview">
         <div class="stat-row">
-          <div class="stat-card"><div class="label">Active reports</div><div class="val teal" id="stat-active">0</div></div>
-          <div class="stat-card"><div class="label">Avg. dispatch time</div><div class="val" id="stat-dispatch">00:00</div></div>
-          <div class="stat-card"><div class="label">Responders online</div><div class="val" id="stat-online">0</div></div>
-          <div class="stat-card"><div class="label">Resolved today</div><div class="val" id="stat-resolved">0</div></div>
+          <div class="stat-card" data-desc="Active incidents in sector">
+            <div class="stat-top"><div class="stat-icon stat-icon-red"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="label">Active reports</div></div>
+            <div class="val teal" id="stat-active">0</div>
+            <div class="stat-desc">Active incidents in sector</div>
+          </div>
+          <div class="stat-card" data-desc="Current average dispatch interval">
+            <div class="stat-top"><div class="stat-icon stat-icon-blue"><i class="fa-solid fa-stopwatch"></i></div><div class="label">Avg. dispatch time</div></div>
+            <div class="val" id="stat-dispatch">00:00</div>
+            <div class="stat-desc">Current average dispatch interval</div>
+          </div>
+          <div class="stat-card" data-desc="Responders ready for assignment">
+            <div class="stat-top"><div class="stat-icon stat-icon-gray"><i class="fa-solid fa-users"></i></div><div class="label">Responders online</div></div>
+            <div class="val" id="stat-online">0</div>
+            <div class="stat-desc">Responders ready for assignment</div>
+          </div>
+          <div class="stat-card" data-desc="Incidents closed today">
+            <div class="stat-top"><div class="stat-icon stat-icon-green"><i class="fa-solid fa-circle-check"></i></div><div class="label">Resolved today</div></div>
+            <div class="val" id="stat-resolved">0</div>
+            <div class="stat-desc">Incidents closed today</div>
+          </div>
         </div>
 
         <div class="grid2">
-          <div class="panel">
-            <div class="panel-head"><h2>Live map <span style="font-weight:400;color:var(--gray-mid);font-size:0.78rem;">(sector overview)</span></h2><span class="count" id="map-count">0 open incidents</span></div>
+          <div class="panel" id="overview-panel">
+            <div class="panel-head"><h2><i class="fa-solid fa-map-location-dot"></i> Live map <span style="font-weight:400;color:var(--gray-mid);font-size:0.78rem;">(sector overview)</span></h2><span class="count" id="map-count">0 open incidents</span></div>
             <div class="map-svg-wrap">
-              <svg viewBox="0 0 480 300" width="100%" style="display:block; height:auto;">
-                <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M 24 0 L 0 0 0 24" fill="none" stroke="#E4E7E7" stroke-width="1"/></pattern></defs>
-                <rect width="480" height="300" fill="#FFFFFF"/>
-                <rect width="480" height="300" fill="url(#grid)"/>
-                <circle cx="240" cy="150" r="7" fill="#1C1F1F"/>
-                <circle cx="240" cy="150" r="12" fill="none" stroke="#1C1F1F" stroke-width="1.5" opacity="0.4"/>
-                <g id="map-markers"></g>
-              </svg>
+              <div id="overview-map" class="overview-map"></div>
             </div>
           </div>
 
-          <div class="panel">
-            <div class="panel-head"><h2>Responders</h2><span class="count" id="responder-count">0 online</span></div>
+          <div class="panel" id="responders-panel">
+            <div class="panel-head"><h2><i class="fa-solid fa-people-group"></i> Responders</h2><span class="count" id="responder-count">0 online</span></div>
             <div id="responder-list"></div>
           </div>
         </div>
 
-        <div class="panel">
-          <div class="panel-head"><h2>Reports</h2><span class="count" id="report-count">0 of 0</span></div>
+        <div class="panel" id="report-panel">
+          <div class="panel-head"><h2><i class="fa-solid fa-clipboard-list"></i> Reports</h2><span class="count" id="report-count">0 of 0</span></div>
           <div class="filters" id="filters">
             <button class="filter-btn active" data-filter="all">All</button>
             <button class="filter-btn" data-filter="new">New</button>
@@ -210,8 +292,8 @@
 
       <!-- ACTIVITY VIEW -->
       <div class="view" id="view-activity">
-        <div class="panel">
-          <div class="panel-head"><h2>Activity log</h2><span class="count" id="audit-count">0 events</span></div>
+        <div class="panel" id="activity-panel">
+          <div class="panel-head"><h2><i class="fa-solid fa-list-check"></i> Activity log</h2><span class="count" id="audit-count">0 events</span></div>
           <div id="audit-list"></div>
         </div>
       </div>
@@ -234,10 +316,37 @@
   </div>
 </div>
 
+<div id="assign-modal" class="map-modal">
+  <div class="map-modal-content">
+    <div class="map-modal-head"><h2>Assign Responder</h2><span class="map-modal-close" id="assign-modal-close">×</span></div>
+    <div class="assign-list" id="assign-list"></div>
+    <div class="map-modal-foot"><button id="assign-btn" class="details-btn" disabled>Assign</button></div>
+  </div>
+</div>
+
+<div id="report-details-backdrop" class="details-backdrop" aria-hidden="true">
+  <div class="details-panel" role="dialog" aria-modal="true" aria-labelledby="details-title">
+    <div class="details-panel-head">
+      <div>
+        <h2 id="details-title">Incident details</h2>
+        <div class="details-subtitle">Quick dispatch summary and location info</div>
+      </div>
+      <button id="details-close" class="details-close" aria-label="Close details panel">×</button>
+    </div>
+    <div class="details-panel-body" id="report-details-content">
+      <p>Loading incident details…</p>
+    </div>
+    <div class="details-panel-footer">
+      <button class="details-btn" disabled>Assign responder</button>
+      <button class="details-btn" disabled>Open in map</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
 <script type="module">
-  import { auth, db } from './firebase-init.js';
-  import { signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+  import { db } from './firebase-init.js';
   import {
     collection, query, orderBy, limit, onSnapshot, doc, updateDoc, getDoc, serverTimestamp
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
@@ -247,25 +356,20 @@
   const authGate = document.getElementById('auth-gate');
   const appRoot = document.getElementById('app-root');
 
-  auth.onAuthStateChanged(async (user) => {
-    if (!user || user.isAnonymous) {
-      window.location.href = 'signal-login.html';
-      return;
-    }
-    const staffDoc = await getDoc(doc(db, 'staff', user.uid));
-    if (!staffDoc.exists() || staffDoc.data().role !== 'dispatcher') {
-      authGate.textContent = 'This account is not set up as a dispatcher.';
-      return;
-    }
-    document.getElementById('operator-email').textContent = (staffDoc.data().name || user.email || '').toUpperCase();
-    authGate.classList.add('hidden');
-    appRoot.style.display = 'grid';
-    initDashboard();
-  });
+  document.getElementById('operator-email').textContent = 'DISPATCH OPERATOR';
+  authGate.classList.add('hidden');
+  appRoot.style.display = 'grid';
 
-  document.getElementById('logout-btn').addEventListener('click', async () => {
-    await signOut(auth);
-    window.location.href = 'signal-login.html';
+  console.log('Step 1');
+  console.log(appRoot);
+  console.log(authGate);
+
+  initDashboard();
+
+  console.log('Step 2');
+
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    window.location.href = 'signal-landing.html';
   });
 
   // ---------------- View switching ----------------
@@ -275,12 +379,12 @@
       item.classList.add('active');
       document.querySelectorAll('.view').forEach((el) => el.classList.remove('active'));
       document.getElementById(`view-${item.dataset.view}`).classList.add('active');
-      document.getElementById('view-title').textContent = item.dataset.view === 'overview' ? 'Overview' : 'Activity log';
+      document.getElementById('view-title').textContent = item.textContent.trim();
     });
   });
 
   function tick() {
-    document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
   }
   tick(); setInterval(tick, 1000);
 
@@ -291,11 +395,87 @@
   }
   const mapModal = document.getElementById('map-modal');
   const photosModal = document.getElementById('photos-modal');
+  const assignModal = document.getElementById('assign-modal');
+  const assignList = document.getElementById('assign-list');
+  const assignBtn = document.getElementById('assign-btn');
   wireModalClose(mapModal, 'map-modal-close');
   wireModalClose(photosModal, 'photos-modal-close');
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { mapModal.classList.remove('show'); photosModal.classList.remove('show'); } });
+  wireModalClose(assignModal, 'assign-modal-close');
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { mapModal.classList.remove('show'); photosModal.classList.remove('show'); assignModal.classList.remove('show'); reportDetailsBackdrop.classList.remove('show'); } });
 
   let modalMapInstance = null;
+  let assignTargetReportId = null;
+  let selectedResponderId = null;
+
+  function openAssignModal(reportId) {
+    assignTargetReportId = reportId;
+    selectedResponderId = null;
+    assignBtn.disabled = true;
+    assignBtn.textContent = 'Assign';
+
+    const availableResponders = responders.filter((r) => r.status === 'available');
+    if (availableResponders.length === 0) {
+      assignList.innerHTML = '<div class="assign-row" aria-disabled="true"><div><div class="assign-name">No available responders</div><div class="assign-meta">Check back once a responder is ready</div></div></div>';
+    } else {
+      assignList.innerHTML = availableResponders.map((responder) => `
+        <div class="assign-row" data-id="${escapeHtml(responder.id)}">
+          <div>
+            <div class="assign-name">${escapeHtml(responder.name || 'Unnamed responder')}</div>
+            <div class="assign-meta">Status: ${escapeHtml(responder.status)}</div>
+          </div>
+        </div>
+      `).join('');
+      assignList.querySelectorAll('.assign-row').forEach((row) => {
+        row.addEventListener('click', () => {
+          assignList.querySelectorAll('.assign-row').forEach((r) => r.classList.remove('selected'));
+          row.classList.add('selected');
+          selectedResponderId = row.dataset.id;
+          assignBtn.disabled = false;
+        });
+      });
+    }
+
+    assignModal.classList.add('show');
+  }
+
+  function closeAssignModal() {
+    assignModal.classList.remove('show');
+    selectedResponderId = null;
+    assignTargetReportId = null;
+    assignBtn.disabled = true;
+    assignList.innerHTML = '';
+  }
+
+  async function assignResponder(reportId, responderId) {
+    const report = reports.find((r) => r.id === reportId);
+    const responder = responders.find((r) => r.id === responderId);
+    if (!report || !responder) return;
+
+    assignBtn.disabled = true;
+    assignBtn.textContent = 'Assigning...';
+
+    await updateDoc(doc(db, 'reports', reportId), {
+      responderId: responder.id,
+      responderName: responder.name || 'Responder',
+      status: 'dispatched',
+      updatedAt: serverTimestamp()
+    });
+
+    await updateDoc(doc(db, 'responders', responderId), {
+      status: 'enroute',
+      currentReportId: reportId,
+      updatedAt: serverTimestamp()
+    });
+
+    await logAuditEvent(reportId, 'status_changed', 'DISPATCH OPERATOR', `Assigned ${responder.name || 'responder'} -> dispatched`);
+    closeAssignModal();
+  }
+
+  assignBtn.addEventListener('click', () => {
+    if (assignTargetReportId && selectedResponderId) {
+      assignResponder(assignTargetReportId, selectedResponderId);
+    }
+  });
   function showMapModal(report) {
     const hasCoords = typeof report.lat === 'number' && typeof report.lon === 'number';
     const lat = hasCoords ? report.lat : DISPATCH_CENTER.lat;
@@ -326,7 +506,116 @@
     photosModal.classList.add('show');
   }
 
-  // ---------------- Dashboard state (populated by Firestore listeners) ----------------
+  const reportDetailsBackdrop = document.getElementById('report-details-backdrop');
+  const reportDetailsContent = document.getElementById('report-details-content');
+
+  function formatField(value) {
+    if (value === null || value === undefined || value === '') return 'Not provided';
+    return escapeHtml(String(value));
+  }
+
+  function renderReportDetails(report) {
+    const reportedAt = report.createdAt
+      ? new Date(report.createdAt.toMillis ? report.createdAt.toMillis() : report.createdAt).toLocaleString('en-US', { hour12: false })
+      : 'Not provided';
+    const location = report.location || report.address || 'Not provided';
+    const reporter = report.reporterName || report.reporter || 'Not provided';
+    const phoneNumber = report.phone || report.phoneNumber || report.reporterPhone || '';
+    const phoneDisplay = phoneNumber ? escapeHtml(phoneNumber) : 'No phone number provided';
+    const description = report.description || report.notes || 'Not provided';
+    const responderName = report.responderName || report.assignedResponder || 'No responder assigned';
+    const responderStatus = report.responderStatus ? escapeHtml(report.responderStatus) : report.responderName ? 'Unknown' : null;
+    const dispatchTime = report.dispatchTimeMinutes != null ? `${escapeHtml(String(report.dispatchTimeMinutes))} minutes` : 'Not provided';
+    const resolutionTime = report.status === 'resolved' && report.updatedAt
+      ? new Date(report.updatedAt.toMillis ? report.updatedAt.toMillis() : report.updatedAt).toLocaleString('en-US', { hour12: false })
+      : report.status === 'resolved'
+        ? 'Resolved time not available'
+        : 'Not resolved';
+    const hasGps = typeof report.lat === 'number' && typeof report.lon === 'number';
+    const photoHtml = report.photos && report.photos.length
+      ? `<div class="details-item details-photo"><div class="details-label">Photos</div><div class="details-photo-grid">${report.photos.map((src, idx) => `<button type="button" class="photo-thumb-button" data-photo-index="${idx}"><img src="${escapeHtml(src)}" alt="Incident photo ${idx + 1}"></button>`).join('')}</div></div>`
+      : '<div class="details-item" style="grid-column:1 / -1;"><div class="details-label">Photos</div><div class="details-value">No photos attached</div></div>';
+
+    reportDetailsContent.innerHTML = `
+      <div class="details-row">
+        <div class="details-item"><div class="details-label">Incident type</div><div class="details-value">${formatField(report.type)}</div></div>
+        <div class="details-item"><div class="details-label">Status</div><div class="details-value">${formatField(report.status)}</div></div>
+      </div>
+      <div class="details-row">
+        <div class="details-item"><div class="details-label">Urgency</div><div class="details-value">${formatField(report.urgency)}</div></div>
+        <div class="details-item"><div class="details-label">Dispatch time</div><div class="details-value">${dispatchTime}</div></div>
+      </div>
+      <div class="details-row">
+        <div class="details-item"><div class="details-label">Date & time reported</div><div class="details-value">${reportedAt}</div></div>
+        <div class="details-item"><div class="details-label">Resolution time</div><div class="details-value">${resolutionTime}</div></div>
+      </div>
+      <div class="details-row">
+        <div class="details-item"><div class="details-label">Location</div><div class="details-value">${escapeHtml(location)}</div></div>
+        <div class="details-item"><div class="details-label">Incident description</div><div class="details-value">${escapeHtml(description)}</div></div>
+      </div>
+      <div class="details-row">
+        <div class="details-item" style="grid-column:1 / -1;"><div class="details-label">Reporter contact</div><div class="details-value">${phoneDisplay}</div></div>
+      </div>
+      <div class="details-row">
+        <div class="details-item"><button type="button" id="details-call-reporter" class="details-btn" ${phoneNumber ? '' : 'disabled'}>${phoneNumber ? 'Call Reporter' : 'Call Reporter'}</button></div>
+      </div>
+      <div class="details-row">
+        <div class="details-item"><div class="details-label">Assigned responder</div><div class="details-value">${escapeHtml(responderName)}</div></div>
+        <div class="details-item"><div class="details-label">Responder status</div><div class="details-value">${responderStatus || 'No responder assigned'}</div></div>
+      </div>
+      <div class="details-row">
+        <div class="details-item"><div class="details-label">GPS</div><div class="details-value">${hasGps ? 'Coordinates available' : 'GPS not available'}</div></div>
+        <div class="details-item"><button type="button" id="details-open-maps" class="details-btn" ${hasGps ? '' : 'disabled'}>Open in Maps</button></div>
+      </div>
+      <div class="details-row">
+        <div class="details-item"><div class="details-label">Latitude</div><div class="details-value">${hasGps ? escapeHtml(String(report.lat)) : '—'}</div></div>
+        <div class="details-item"><div class="details-label">Longitude</div><div class="details-value">${hasGps ? escapeHtml(String(report.lon)) : '—'}</div></div>
+      </div>
+      ${photoHtml}
+    `;
+
+    const callButton = document.getElementById('details-call-reporter');
+    if (callButton) {
+      callButton.addEventListener('click', () => {
+        if (phoneNumber) {
+          window.open(`tel:${phoneNumber}`);
+        }
+      });
+    }
+
+    const openMapsBtn = document.getElementById('details-open-maps');
+    if (openMapsBtn) {
+      openMapsBtn.addEventListener('click', () => {
+        if (hasGps) {
+          showMapModal(report);
+        }
+      });
+    }
+
+    document.querySelectorAll('.photo-thumb-button').forEach((button) => {
+      button.addEventListener('click', () => {
+        if (report.photos && report.photos.length) {
+          showPhotosModal(report.photos);
+        }
+      });
+    });
+  }
+
+  function openReportDetails(report) {
+    renderReportDetails(report);
+    reportDetailsBackdrop.classList.add('show');
+    reportDetailsBackdrop.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeReportDetails() {
+    reportDetailsBackdrop.classList.remove('show');
+    reportDetailsBackdrop.setAttribute('aria-hidden', 'true');
+  }
+
+  document.getElementById('details-close').addEventListener('click', closeReportDetails);
+  reportDetailsBackdrop.addEventListener('click', (event) => {
+    if (event.target === reportDetailsBackdrop) closeReportDetails();
+  });
   let reports = [];
   let responders = [];
   let activeFilter = 'all';
@@ -356,35 +645,131 @@
     }).join('');
   }
 
+  let overviewMapInstance = null;
+  let overviewMarkersLayer = null;
+
+  function ensureOverviewMap() {
+    if (overviewMapInstance) return;
+    overviewMapInstance = L.map('overview-map', { zoomControl: false }).setView([DISPATCH_CENTER.lat, DISPATCH_CENTER.lon], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(overviewMapInstance);
+    overviewMarkersLayer = L.markerClusterGroup();
+    overviewMapInstance.addLayer(overviewMarkersLayer);
+    setTimeout(() => overviewMapInstance.invalidateSize(), 50);
+  }
+
   function renderMap() {
-    const markers = document.getElementById('map-markers');
-    const positions = [{ x: 120, y: 90 }, { x: 340, y: 70 }, { x: 360, y: 220 }, { x: 100, y: 220 }, { x: 240, y: 110 }, { x: 280, y: 190 }];
-    const active = reports.filter((r) => r.status !== 'resolved');
-    markers.innerHTML = active.map((r, i) => {
-      const pos = positions[i % positions.length];
-      const fill = r.urgency === 'critical' ? '#D64545' : r.urgency === 'moderate' ? '#C98A2E' : '#05AD98';
-      return `<g class="marker" data-id="${escapeHtml(r.id)}"><circle cx="${pos.x}" cy="${pos.y}" r="4" fill="${fill}" class="pulse-ring"/><circle cx="${pos.x}" cy="${pos.y}" r="5" fill="${fill}"/></g>`;
-    }).join('');
-    markers.querySelectorAll('.marker').forEach((m) => {
-      m.addEventListener('click', () => {
-        const report = reports.find((r) => r.id === m.dataset.id);
-        if (report) showMapModal(report);
+    ensureOverviewMap();
+    overviewMarkersLayer.clearLayers();
+
+    console.log('renderMap: total reports loaded', reports.length);
+    reports.forEach((report, idx) => {
+      console.log(`renderMap: report[${idx}] id=${report.id}`, {
+        lat: report.lat,
+        lon: report.lon,
+        status: report.status,
+        urgency: report.urgency
       });
     });
+
+    const active = reports.filter((r) => r.status !== 'resolved');
+    console.log('renderMap: total active reports', active.length);
+
+    const validReports = active.filter((r) => {
+      const valid = typeof r.lat === 'number' && typeof r.lon === 'number';
+      if (!valid) {
+        console.log(`renderMap: skipped report id=${r.id}`, {
+          reason: 'invalid coordinates',
+          lat: r.lat,
+          lon: r.lon
+        });
+      }
+      return valid;
+    });
+
+    if (validReports.length === 0) {
+      console.log('renderMap: no valid reports to plot, centering on dispatch center');
+      overviewMapInstance.setView([DISPATCH_CENTER.lat, DISPATCH_CENTER.lon], 11);
+      return;
+    }
+
+    const threshold = 0.00002;
+    const groups = [];
+    validReports.forEach((report) => {
+      let group = groups.find((g) => Math.abs(g.lat - report.lat) <= threshold && Math.abs(g.lon - report.lon) <= threshold);
+      if (!group) {
+        group = { lat: report.lat, lon: report.lon, reports: [] };
+        groups.push(group);
+      }
+      group.reports.push(report);
+    });
+
+    const bounds = [];
+
+    groups.forEach((group) => {
+      group.reports.forEach((report, index) => {
+        let markerLat = report.lat;
+        let markerLon = report.lon;
+        if (group.reports.length > 1) {
+          const angle = (index % 8) * (Math.PI / 4);
+          const ring = Math.floor(index / 8) + 1;
+          const radius = 0.00005 * ring;
+          markerLat += Math.sin(angle) * radius;
+          markerLon += Math.cos(angle) * radius;
+        }
+
+        const fill = report.urgency === 'critical' ? '#D64545' : report.urgency === 'moderate' ? '#C98A2E' : '#05AD98';
+        const marker = L.circleMarker([markerLat, markerLon], {
+          radius: 8,
+          fillColor: fill,
+          color: '#fff',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.9
+        });
+        overviewMarkersLayer.addLayer(marker);
+        marker.on('click', () => openReportDetails(report));
+        bounds.push([markerLat, markerLon]);
+        console.log(`renderMap: created marker for report id=${report.id}`, {
+          lat: report.lat,
+          lon: report.lon,
+          markerLat,
+          markerLon,
+          urgency: report.urgency
+        });
+      });
+    });
+
+    console.log('renderMap: total markers added', bounds.length);
+    console.table(
+      reports.map((r) => ({
+        id: r.id,
+        lat: r.lat,
+        lon: r.lon,
+        status: r.status
+      }))
+    );
+    if (bounds.length === 1) {
+      overviewMapInstance.setView(bounds[0], 13);
+    } else {
+      overviewMapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+    }
   }
 
   function renderReports() {
     const filtered = activeFilter === 'all' ? reports : reports.filter((r) => r.status === activeFilter);
     document.getElementById('report-count').textContent = `${filtered.length} of ${reports.length}`;
     document.getElementById('report-list').innerHTML = filtered.map((r) => `
-      <div class="report-row" data-id="${escapeHtml(r.id)}">
+      <div class="report-row ${escapeHtml(r.urgency)}" data-id="${escapeHtml(r.id)}">
         <span class="report-id">#${escapeHtml(r.id.slice(-6).toUpperCase())}</span>
         <div class="report-main">
           <span class="report-loc">${escapeHtml(r.location)}<span class="type">${escapeHtml(r.type)}</span></span>
           <span class="report-note">${escapeHtml(r.description || 'No additional notes')}</span>
           <span class="report-links">
-            <span class="show-map-btn" data-id="${escapeHtml(r.id)}">📍 View map</span>
-            ${r.photos && r.photos.length ? `<span class="show-photos-btn" data-id="${escapeHtml(r.id)}">📷 ${r.photos.length} photo${r.photos.length > 1 ? 's' : ''}</span>` : ''}
+            <span class="show-map-btn" data-id="${escapeHtml(r.id)}"><i class="fa-solid fa-location-dot"></i> View map</span>
+            ${r.photos && r.photos.length ? `<span class="show-photos-btn" data-id="${escapeHtml(r.id)}"><i class="fa-solid fa-camera"></i> ${r.photos.length} photo${r.photos.length > 1 ? 's' : ''}</span>` : ''}
           </span>
         </div>
         <div class="report-actions">
@@ -405,7 +790,7 @@
   async function updateReportStatus(reportId, status) {
     const reportRef = doc(db, 'reports', reportId);
     await updateDoc(reportRef, { status, updatedAt: serverTimestamp() });
-    await logAuditEvent(reportId, 'status_changed', auth.currentUser.email, `-> ${status}`);
+    await logAuditEvent(reportId, 'status_changed', 'DISPATCH OPERATOR', `-> ${status}`);
     if (status === 'resolved') {
       const report = reports.find((r) => r.id === reportId);
       if (report && report.responderId) {
@@ -415,27 +800,56 @@
   }
 
   function initDashboard() {
-    onSnapshot(query(collection(db, 'reports'), orderBy('createdAt', 'desc')), (snapshot) => {
-      reports = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      renderAll();
-    });
+    onSnapshot(
+      collection(db, 'reports'),
+      (snapshot) => {
+        console.log('Reports received:', snapshot.size);
 
-    onSnapshot(collection(db, 'responders'), (snapshot) => {
-      responders = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      renderAll();
-    });
+        reports = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data()
+        }));
 
-    onSnapshot(query(collection(db, 'audit_log'), orderBy('timestamp', 'desc'), limit(50)), (snapshot) => {
-      const entries = snapshot.docs.map((d) => d.data());
-      document.getElementById('audit-count').textContent = `${entries.length} events`;
-      document.getElementById('audit-list').innerHTML = entries.map((e) => `
-        <div class="audit-row">
-          <span class="audit-time">${e.timestamp ? escapeHtml(getRelativeTime(e.timestamp.toMillis())) : '—'}</span>
-          <span>${escapeHtml(e.action)} — ${escapeHtml(e.details || '')} <span style="color:var(--gray-mid)">(#${escapeHtml((e.reportId || '').slice(-6).toUpperCase())})</span></span>
-          <span class="audit-actor">${escapeHtml(e.actor || 'system')}</span>
-        </div>
-      `).join('') || '<p class="photos-loading" style="padding:16px 20px;">No activity yet.</p>';
-    });
+        console.log('Before renderAll() [reports]');
+        renderAll();
+        console.log('After renderAll() [reports]');
+      }
+    );
+
+    onSnapshot(
+      collection(db, 'responders'),
+      (snapshot) => {
+        console.log('Responders loaded:', snapshot.size);
+        responders = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        console.log('Before renderAll() [responders]');
+        renderAll();
+        console.log('After renderAll() [responders]');
+      },
+      (error) => {
+        console.error('RESPONDERS ERROR:', error);
+      }
+    );
+
+    onSnapshot(
+      query(collection(db, 'audit_log'), orderBy('timestamp', 'desc'), limit(50)),
+      (snapshot) => {
+        console.log('Audit log loaded:', snapshot.size);
+        console.log('Before audit callback');
+        const entries = snapshot.docs.map((d) => d.data());
+        document.getElementById('audit-count').textContent = `${entries.length} events`;
+        document.getElementById('audit-list').innerHTML = entries.map((e) => `
+          <div class="audit-row">
+            <span class="audit-time">${e.timestamp ? escapeHtml(getRelativeTime(e.timestamp.toMillis())) : '—'}</span>
+            <span>${escapeHtml(e.action)} — ${escapeHtml(e.details || '')} <span style="color:var(--gray-mid)">(#${escapeHtml((e.reportId || '').slice(-6).toUpperCase())})</span></span>
+            <span class="audit-actor">${escapeHtml(e.actor || 'system')}</span>
+          </div>
+        `).join('') || '<p class="photos-loading" style="padding:16px 20px;">No activity yet.</p>';
+        console.log('After audit callback');
+      },
+      (error) => {
+        console.error('AUDIT LOG ERROR:', error);
+      }
+    );
 
     document.querySelectorAll('.filter-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -461,7 +875,17 @@
       }
       const actionBtn = event.target.closest('.mini-action');
       if (actionBtn) {
-        updateReportStatus(actionBtn.dataset.id, actionBtn.dataset.action);
+        if (actionBtn.dataset.action === 'dispatched') {
+          openAssignModal(actionBtn.dataset.id);
+        } else {
+          updateReportStatus(actionBtn.dataset.id, actionBtn.dataset.action);
+        }
+        return;
+      }
+      const row = event.target.closest('.report-row');
+      if (row) {
+        const report = reports.find((r) => r.id === row.dataset.id);
+        if (report) openReportDetails(report);
       }
     });
   }

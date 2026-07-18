@@ -7,11 +7,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <style>
   :root{
-    --bg:#FFFFFF; --surface:#F4F6F6; --surface-2:#EDEFEF;
-    --gray-light:#BBBFBF; --gray-mid:#878787; --gray-dark:#4A4D4D; --ink:#1C1F1F;
-    --teal:#05AD98; --teal-dark:#048572; --teal-light:#E4F7F4;
+    --bg:#FFFFFF; --surface:#ECEFF1; --surface-2:#CFD8DC;
+    --gray-light:#B0BEC5; --gray-mid:#78909C; --gray-dark:#546E7A; --ink:#263238;
+    --primary-red:#C62828; --primary-blue:#1565C0; --success-green:#2E7D32; --warning-orange:#EF6C00;
     --font-display:'Space Grotesk', sans-serif; --font-body:'Inter', sans-serif; --font-mono:'IBM Plex Mono', monospace;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -19,49 +20,90 @@
   a{ color:inherit; text-decoration:none; }
 
   .page{ max-width:520px; margin:0 auto; padding:40px 20px 60px; }
-  .logo{ display:flex; align-items:center; gap:9px; font-family:var(--font-display); font-weight:700; font-size:1.15rem; margin-bottom:30px; }
-  .logo-dot{ width:9px; height:9px; border-radius:50%; background:var(--teal); box-shadow:0 0 0 0 rgba(5,173,152,0.5); animation:pulse-dot 2.2s infinite; }
+  .logo{ display:flex; align-items:center; gap:9px; font-family:var(--font-display); font-weight:700; font-size:1.15rem; margin-bottom:30px; color:#05AD98; }
+  .logo-dot{ width:9px; height:9px; border-radius:50%; background:#05AD98; box-shadow:0 0 0 0 rgba(5,173,152,0.45); animation:pulse-dot 2.2s infinite; }
   @keyframes pulse-dot{ 0%{box-shadow:0 0 0 0 rgba(5,173,152,0.45);} 70%{box-shadow:0 0 0 8px rgba(5,173,152,0);} 100%{box-shadow:0 0 0 0 rgba(5,173,152,0);} }
 
-  .card{ background:#fff; border:1px solid var(--surface-2); border-radius:18px; padding:32px; box-shadow:0 20px 50px -30px rgba(28,31,31,0.15); }
-  .card h1{ font-family:var(--font-display); font-size:1.5rem; font-weight:700; letter-spacing:-0.02em; margin-bottom:8px; }
+  .card{ background:#fff; border:1px solid var(--surface-2); border-radius:18px; padding:32px; box-shadow:0 24px 60px -38px rgba(38,50,56,0.14); }
+  .card h1{ font-family:var(--font-display); font-size:1.55rem; font-weight:700; letter-spacing:-0.02em; margin-bottom:8px; color:var(--dark-text); }
   .card > p{ color:var(--gray-dark); font-size:0.94rem; margin-bottom:26px; }
 
   .field{ margin-bottom:20px; }
-  .field label{ display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px; }
+  .field label{ display:block; font-size:0.88rem; font-weight:700; margin-bottom:10px; color:var(--dark-text); }
   .field .hint{ font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid); font-weight:400; margin-left:6px; }
 
-  .type-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .type-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
   .type-opt{
-    border:1.5px solid var(--surface-2); border-radius:10px; padding:12px 14px;
-    font-size:0.86rem; font-weight:500; cursor:pointer; transition:all .15s ease;
-    display:flex; align-items:center; gap:8px;
+    border:1.5px solid var(--surface-2); border-radius:14px; padding:14px 16px;
+    font-size:0.95rem; font-weight:600; cursor:pointer; transition:all .18s ease;
+    display:flex; align-items:center; gap:12px; position:relative; background:#fff;
   }
   .type-opt:hover{ border-color:var(--gray-light); }
-  .type-opt.selected{ border-color:var(--teal); background:var(--teal-light); color:var(--teal-dark); }
+  .type-opt.selected{ border-color:currentColor; color:inherit; }
+  .type-opt.selected::after{ content:'Selected'; margin-left:auto; font-family:var(--font-mono); font-size:0.72rem; font-weight:700; color:inherit; background:rgba(0,0,0,0.06); padding:4px 10px; border-radius:999px; }
   .type-opt input{ display:none; }
+  .type-opt i{ font-size:22px; width:24px; display:inline-flex; justify-content:center; }
+  .type-opt.medical{ color:var(--primary-blue); }
+  .type-opt.medical.selected{ background:rgba(21,101,192,0.08); }
+  .type-opt.fire{ color:var(--primary-red); }
+  .type-opt.fire.selected{ background:rgba(198,40,40,0.08); }
+  .type-opt.road{ color:var(--warning-orange); }
+  .type-opt.road.selected{ background:rgba(239,108,0,0.1); }
+  .type-opt.flood{ color:var(--primary-blue); }
+  .type-opt.flood.selected{ background:rgba(21,101,192,0.1); }
+  .type-opt.crime{ color:#263238; }
+  .type-opt.crime.selected{ background:rgba(38,50,56,0.08); }
+  .type-opt.other{ color:#6B7280; }
+  .type-opt.other.selected{ background:rgba(107,114,128,0.12); }
 
   input[type=text], textarea{
     width:100%; border:1.5px solid var(--surface-2); border-radius:10px; padding:12px 14px;
     font-family:var(--font-body); font-size:0.9rem; color:var(--ink); resize:vertical;
     transition:border-color .15s ease;
   }
-  input[type=text]:focus, textarea:focus{ outline:none; border-color:var(--teal); }
+  input[type=text]:focus, textarea:focus{ outline:none; border-color:var(--primary-blue); }
   textarea{ min-height:88px; }
 
   .loc-row{ display:flex; gap:10px; }
   .loc-row input{ flex:1; }
   .loc-btn{
-    flex-shrink:0; display:flex; align-items:center; gap:6px; border:1.5px solid var(--surface-2);
-    border-radius:10px; padding:0 14px; font-size:0.82rem; font-weight:600; color:var(--gray-dark);
+    flex-shrink:0; display:flex; align-items:center; gap:8px; border:1.5px solid var(--surface-2);
+    border-radius:10px; padding:0 14px; font-size:0.88rem; font-weight:700; color:var(--dark-text);
     background:#fff; transition:all .15s ease; cursor:pointer;
   }
-  .loc-btn:hover{ border-color:var(--teal); color:var(--teal-dark); }
+  .loc-btn:hover{ border-color:var(--primary-blue); color:var(--primary-blue); }
   .loc-btn:disabled{ opacity:0.6; cursor:not-allowed; }
-  .loc-btn svg{ width:15px; height:15px; }
-  .loc-confirmed{ font-family:var(--font-mono); font-size:0.75rem; color:var(--teal-dark); margin-top:8px; display:none; align-items:center; gap:6px; }
+  .loc-btn i, .loc-btn svg{ width:18px; height:18px; }
+  .loc-btn{ font-size:0.88rem; }
+  .loc-confirmed{ font-family:var(--font-mono); font-size:0.75rem; color:var(--success-green); margin-top:8px; display:none; align-items:center; gap:6px; }
   .loc-confirmed.show{ display:flex; }
-  .loc-confirmed .dot{ width:6px; height:6px; border-radius:50%; background:var(--teal); }
+  .loc-confirmed .dot{ width:6px; height:6px; border-radius:50%; background:var(--success-green); }
+
+  .location-status{
+    margin-top:12px;
+    padding:14px;
+    border-radius:10px;
+    font-size:15px;
+    line-height:1.6;
+    border-left:5px solid #f59e0b;
+    background:#fff8e6;
+    color:#444;
+  }
+
+  .location-status.good{
+    border-left-color:var(--success-green);
+    background:rgba(46,125,50,0.08);
+  }
+
+  .location-status.warning{
+    border-left-color:var(--warning-orange);
+    background:rgba(239,108,0,0.08);
+  }
+
+  .location-status.error{
+    border-left-color:var(--primary-red);
+    background:rgba(198,40,40,0.08);
+  }
 
   .urgency-grid{ display:flex; gap:8px; }
   .urgency-opt{
@@ -75,11 +117,11 @@
   .urgency-opt[data-level="critical"].selected{ border-color:#D64545; background:#FCE9E9; color:#D64545; }
 
   .submit-btn{
-    width:100%; background:var(--ink); color:#fff; border:none; border-radius:10px;
-    padding:15px; font-size:0.95rem; font-weight:600; font-family:var(--font-body);
-    margin-top:6px; transition:background .2s ease; cursor:pointer;
+    width:100%; background:var(--primary-red); color:#fff; border:none; border-radius:10px;
+    padding:15px; font-size:0.95rem; font-weight:700; font-family:var(--font-body);
+    margin-top:6px; transition:transform .15s ease, background .2s ease; cursor:pointer;
   }
-  .submit-btn:hover{ background:var(--teal-dark); }
+  .submit-btn:hover{ background:#b71c1c; transform:translateY(-1px); }
   .submit-btn:disabled{ background:var(--gray-light); cursor:not-allowed; }
 
   .foot-note{ text-align:center; font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid); margin-top:18px; }
@@ -90,9 +132,11 @@
   .success{ display:none; text-align:center; padding:20px 0 4px; }
   .success.show{ display:block; }
   .success .ring{
-    width:60px; height:60px; border-radius:50%; background:var(--teal-light); color:var(--teal-dark);
+    width:60px; height:60px; border-radius:50%; background:rgba(46,125,50,0.12); color:var(--success-green);
     display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:1.6rem;
   }
+  .success .ring i{ font-size:1.6rem; }
+  .success .ring i{ font-size:1.6rem; }
   .success h2{ font-family:var(--font-display); font-size:1.25rem; margin-bottom:8px; }
   .success p{ color:var(--gray-dark); font-size:0.9rem; margin-bottom:4px; }
   .success .ref{ font-family:var(--font-mono); font-size:0.85rem; color:var(--ink); background:var(--surface); display:inline-block; padding:8px 16px; border-radius:8px; margin-top:14px; }
@@ -114,8 +158,8 @@
   .photo-remove:hover{ background:#000; }
   .photo-hint{ font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid); margin-top:8px; }
 
-  .track-cta{ display:inline-block; text-align:center; margin-top:10px; background:var(--teal-light); color:var(--teal-dark); border:1.5px solid var(--teal); border-radius:10px; padding:13px; font-weight:600; width:100%; }
-  .track-cta:hover{ background:var(--teal); color:#fff; }
+  .track-cta{ display:inline-block; text-align:center; margin-top:10px; background:rgba(21,101,192,0.08); color:var(--primary-blue); border:1.5px solid var(--primary-blue); border-radius:10px; padding:13px; font-weight:600; width:100%; }
+  .track-cta:hover{ background:var(--primary-blue); color:#fff; }
 </style>
 </head>
 <body>
@@ -125,44 +169,50 @@
 
   <div class="card">
     <div class="form-body" id="form-body">
-      <h1>Report an incident</h1>
+      <h1>Emergency Incident Report</h1>
       <p>Tell us what's happening and where. Signal maps it instantly and routes the nearest responder.</p>
 
       <div class="form-error" id="form-error"></div>
 
       <form id="report-form">
-        <div class="field">
+          <div class="field">
           <label>What kind of incident? <span class="hint">select one</span></label>
           <div class="type-grid" id="type-grid">
-            <button type="button" class="type-opt" data-type="Medical emergency"><input type="radio" name="type" value="Medical emergency">🩹 Medical</button>
-            <button type="button" class="type-opt" data-type="Fire"><input type="radio" name="type" value="Fire">🔥 Fire</button>
-            <button type="button" class="type-opt" data-type="Road accident"><input type="radio" name="type" value="Road accident">🚗 Road accident</button>
-            <button type="button" class="type-opt" data-type="Flood risk"><input type="radio" name="type" value="Flood risk">🌊 Flood risk</button>
-            <button type="button" class="type-opt" data-type="Crime in progress"><input type="radio" name="type" value="Crime in progress">🚨 Crime</button>
-            <button type="button" class="type-opt" data-type="Other"><input type="radio" name="type" value="Other">📍 Other</button>
+            <button type="button" class="type-opt medical" data-type="Medical emergency"><input type="radio" name="type" value="Medical emergency"><i class="fa-solid fa-kit-medical"></i>Medical</button>
+            <button type="button" class="type-opt fire" data-type="Fire"><input type="radio" name="type" value="Fire"><i class="fa-solid fa-fire"></i>Fire</button>
+            <button type="button" class="type-opt road" data-type="Road accident"><input type="radio" name="type" value="Road accident"><i class="fa-solid fa-car-burst"></i>Road accident</button>
+            <button type="button" class="type-opt flood" data-type="Flood risk"><input type="radio" name="type" value="Flood risk"><i class="fa-solid fa-house-flood-water"></i>Flood risk</button>
+            <button type="button" class="type-opt crime" data-type="Crime in progress"><input type="radio" name="type" value="Crime in progress"><i class="fa-solid fa-shield-halved"></i>Crime</button>
+            <button type="button" class="type-opt other" data-type="Other"><input type="radio" name="type" value="Other"><i class="fa-solid fa-ellipsis"></i>Other</button>
           </div>
         </div>
 
         <div class="field">
-          <label>Location</label>
+          <label><i class="fa-solid fa-location-dot"></i> Location</label>
           <div class="loc-row">
             <input type="text" id="loc-input" placeholder="e.g. Jimeta Main Road, near the market">
             <button type="button" class="loc-btn" id="use-loc">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21s7-6.5 7-11a7 7 0 1 0-14 0c0 4.5 7 11 7 11Z"/></svg>
-              Use my location
+              <i class="fa-solid fa-location-dot"></i>
+              Detect location
             </button>
           </div>
+          <div id="locationStatus" class="location-status" hidden></div>
           <div id="location-map"></div>
           <div class="location-details" id="location-details" style="display:none;"></div>
           <div class="loc-confirmed" id="loc-confirmed"><span class="dot"></span>Location attached</div>
         </div>
 
         <div class="field">
-          <label>Photo of the spot <span class="hint">optional, up to 3</span></label>
+          <label><i class="fa-solid fa-mobile-screen-button"></i> Phone Number <span class="hint">optional</span></label>
+          <input type="tel" id="phone-input" placeholder="+234 800 000 0000">
+        </div>
+
+        <div class="field">
+          <label><i class="fa-solid fa-camera"></i> Photos <span class="hint">optional, up to 3</span></label>
           <div class="photo-row">
             <input type="file" id="photo-input" accept="image/*" capture="environment" multiple style="display:none">
             <button type="button" class="loc-btn" id="add-photo-btn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+              <i class="fa-solid fa-camera"></i>
               Add photo
             </button>
           </div>
@@ -171,12 +221,12 @@
         </div>
 
         <div class="field">
-          <label>Describe what's happening <span class="hint">optional</span></label>
+          <label><i class="fa-solid fa-align-left"></i> Description <span class="hint">optional</span></label>
           <textarea id="desc-input" placeholder="Any details that help responders — number of people affected, visible hazards, access notes..."></textarea>
         </div>
 
         <div class="field">
-          <label>Urgency</label>
+          <label><i class="fa-solid fa-triangle-exclamation"></i> Priority</label>
           <div class="urgency-grid" id="urgency-grid">
             <button type="button" class="urgency-opt" data-level="low"><input type="radio" name="urgency" value="low">Low</button>
             <button type="button" class="urgency-opt" data-level="moderate"><input type="radio" name="urgency" value="moderate">Moderate</button>
@@ -184,13 +234,13 @@
           </div>
         </div>
 
-        <button type="submit" class="submit-btn" id="submit-btn" disabled>Send report</button>
+        <button type="submit" class="submit-btn" id="submit-btn" disabled><i class="fa-solid fa-paper-plane"></i> Submit Emergency Report</button>
       </form>
       <div class="foot-note">Your report and location are shared only with dispatch and responders.</div>
     </div>
 
     <div class="success" id="success">
-      <div class="ring">✓</div>
+      <div class="ring"><i class="fa-solid fa-circle-check"></i></div>
       <h2>Report sent</h2>
       <p id="success-line">Dispatch has your location and is finding the nearest responder.</p>
       <p>Track its status below.</p>
@@ -212,6 +262,7 @@
   const form = document.getElementById('report-form');
   const submitBtn = document.getElementById('submit-btn');
   const locInput = document.getElementById('loc-input');
+  const phoneInput = document.getElementById('phone-input');
   const useLocBtn = document.getElementById('use-loc');
   const locConfirmed = document.getElementById('loc-confirmed');
   const formBody = document.getElementById('form-body');
@@ -292,12 +343,58 @@
 
   let locationMap = null;
 
+  function showLocationStatus(accuracy) {
+    const box = document.getElementById('locationStatus');
+    box.hidden = false;
+
+    if (accuracy <= 30) {
+      box.className = 'location-status good';
+      box.innerHTML = `
+        <strong><i class="fa-solid fa-circle-check"></i> Excellent GPS Accuracy</strong><br>
+        Estimated accuracy: ${Math.round(accuracy)} metres.
+        Emergency responders can use this location confidently.
+      `;
+    } else if (accuracy <= 100) {
+      box.className = 'location-status good';
+      box.innerHTML = `
+        <strong><i class="fa-solid fa-circle-check"></i> Good GPS Accuracy</strong><br>
+        Estimated accuracy: ${Math.round(accuracy)} metres.
+      `;
+    } else if (accuracy <= 1000) {
+      box.className = 'location-status warning';
+      box.innerHTML = `
+        <strong><i class="fa-solid fa-triangle-exclamation"></i> Moderate Accuracy</strong><br>
+        Estimated accuracy: ${Math.round(accuracy)} metres.<br><br>
+        Please confirm your location before submitting the report.
+      `;
+    } else {
+      box.className = 'location-status error';
+      box.innerHTML = `
+        <strong><i class="fa-solid fa-triangle-exclamation"></i> Low Location Accuracy</strong><br><br>
+        Your device could only determine your location within approximately
+        <strong>${(accuracy/1000).toFixed(1)} km</strong>.
+
+        <br><br>
+
+        For a more accurate emergency response:
+
+        <ul>
+            <li><i class="fa-solid fa-mobile-screen-button"></i> Use a smartphone with GPS.</li>
+            <li><i class="fa-solid fa-wifi"></i> Connect using a mobile hotspot or mobile data if available.</li>
+            <li><i class="fa-solid fa-sun"></i> Move outdoors for a clearer GPS signal.</li>
+            <li><i class="fa-solid fa-location-dot"></i> Verify your location on the map before sending.</li>
+            <li><i class="fa-solid fa-pen"></i> You may also enter your location manually.</li>
+        </ul>
+      `;
+    }
+  }
+
   function applyLocation(lat, lon, fallbackLabel) {
     selectedCoords = { lat, lon };
     const detailsDiv = document.getElementById('location-details');
     const label = fallbackLabel || `Current location — ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
     locInput.value = label;
-    detailsDiv.innerHTML = `<strong>${escapeHtml(label)}</strong>📍 ${lat.toFixed(4)}, ${lon.toFixed(4)}<br><small>Location attached for dispatch</small>`;
+    detailsDiv.innerHTML = `<strong>${escapeHtml(label)}</strong> <i class="fa-solid fa-location-dot"></i> ${lat.toFixed(4)}, ${lon.toFixed(4)}<br><small>Location attached for dispatch</small>`;
     detailsDiv.style.display = 'block';
 
     if (window.L) {
@@ -332,6 +429,21 @@
       });
       const lat = position.coords.latitude;
       const lon = position.coords.longitude;
+
+      console.log("Latitude:", lat);
+      console.log("Longitude:", lon);
+      console.log("Accuracy:", position.coords.accuracy);
+
+      showLocationStatus(position.coords.accuracy);
+
+      if (position.coords.accuracy > 1000) {
+        alert(
+          "Your location is only accurate to about "
+          + Math.round(position.coords.accuracy)
+          + " meters. Please verify your location on the map or enter it manually."
+        );
+      }
+
       const address = await reverseGeocode(lat, lon);
       applyLocation(lat, lon, address ? address.short : `Current location — ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
     } catch (error) {
@@ -373,7 +485,7 @@
     photoPreviews.innerHTML = selectedPhotoFiles.map((item, index) => `
       <div class="photo-thumb" data-index="${index}">
         <img src="${item.previewUrl}" alt="Incident photo ${index + 1}">
-        <button type="button" class="photo-remove" data-index="${index}" aria-label="Remove photo">×</button>
+        <button type="button" class="photo-remove" data-index="${index}" aria-label="Remove photo"><i class="fa-solid fa-xmark"></i></button>
       </div>
     `).join('');
     photoPreviews.querySelectorAll('.photo-remove').forEach((btn) => {
@@ -437,7 +549,7 @@
       const uid = auth.currentUser.uid;
       const dispatchTimeMinutes = dispatchMinutesFor(selectedUrgency);
 
-      const reportDoc = await addDoc(collection(db, 'reports'), {
+      const reportData = {
         type: selectedType,
         location: locInput.value.trim(),
         description: document.getElementById('desc-input').value.trim(),
@@ -452,9 +564,17 @@
         reporterUid: uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      });
+      };
+      const phoneNumber = phoneInput.value.trim();
+      if (phoneNumber) {
+        reportData.phoneNumber = phoneNumber;
+      }
+
+      const reportDoc = await addDoc(collection(db, 'reports'), reportData);
+      console.log("Report created:", reportDoc.id);
 
       await logAuditEvent(reportDoc.id, 'report_created', uid, `${selectedType} — ${selectedUrgency}`);
+      console.log("Audit log created");
 
       // Upload photos (if any) now that we have a report ID to namespace them under.
       if (selectedPhotoFiles.length > 0) {
@@ -466,6 +586,7 @@
           urls.push(await getDownloadURL(fileRef));
         }
         await updateDoc(doc(db, 'reports', reportDoc.id), { photos: urls });
+        console.log("Photos uploaded");
       }
 
       // Try to auto-assign the nearest available responder right away.

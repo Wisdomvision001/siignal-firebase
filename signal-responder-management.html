@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal — Responder Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#F7FAFC;
+    --surface:#FFFFFF;
+    --surface-2:#E8EEF2;
+    --ink:#121826;
+    --gray:#5F6776;
+    --gray-light:#A6B0BE;
+    --teal:#05AD98;
+    --amber:#D97706;
+    --blue:#2563EB;
+    --red:#DC2626;
+    --font-display:'Space Grotesk', sans-serif;
+    --font-body:'Inter', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html, body{ margin:0; min-height:100%; font-family:var(--font-body); background:var(--bg); color:var(--ink); }
+  body{ padding:0; }
+  button,input,select{ font:inherit; }
+  button{ cursor:pointer; }
+  a{ color:inherit; text-decoration:none; }
+
+  .page{ max-width:1180px; margin:0 auto; padding:20px; }
+  .topbar{ display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:18px; }
+  .brand{ display:flex; align-items:center; gap:12px; font-family:var(--font-display); font-size:1.15rem; font-weight:700; }
+  .brand-dot{ width:12px; height:12px; border-radius:50%; background:var(--teal); }
+  .top-actions{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .page-copy{ max-width:680px; color:var(--gray); line-height:1.6; }
+  .panel{ background:var(--surface); border:1px solid var(--surface-2); border-radius:18px; box-shadow:0 16px 34px rgba(15,23,42,0.08); overflow:hidden; }
+  .panel-head{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:20px 24px; border-bottom:1px solid var(--surface-2); }
+  .panel-head h1{ margin:0; font-size:1.1rem; font-family:var(--font-display); letter-spacing:-0.02em; }
+  .panel-head .summary{ font-family:var(--font-mono); color:var(--gray); font-size:0.85rem; }
+  .toolbar{ display:grid; grid-template-columns:1fr auto; gap:14px; align-items:center; padding:20px 24px; }
+  .search-box{ width:100%; min-width:220px; display:flex; align-items:center; gap:10px; background:var(--surface-2); border-radius:14px; padding:11px 14px; }
+  .search-box input{ width:100%; border:none; background:transparent; outline:none; color:var(--ink); font-size:0.96rem; }
+  .search-box .material-symbols-rounded{ color:var(--gray); font-size:1.15rem; }
+  .status-filters{ display:flex; flex-wrap:wrap; gap:10px; padding:0 24px 16px; }
+  .filter-chip{ border:1px solid var(--surface-2); border-radius:999px; background:#fff; padding:9px 14px; font-family:var(--font-mono); font-size:0.78rem; color:var(--gray); cursor:pointer; transition:background .15s ease, border-color .15s ease, color .15s ease; }
+  .filter-chip.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .button-primary{ color:#fff; background:var(--teal); border:none; border-radius:14px; padding:12px 18px; font-weight:700; }
+  .button-secondary{ color:var(--ink); background:var(--surface-2); border:none; border-radius:14px; padding:12px 18px; }
+  .button-icon{ display:inline-flex; align-items:center; gap:8px; }
+  .stats-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; padding:0 24px 24px; }
+  .stat-card{ background:var(--surface-2); border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:10px; }
+  .stat-label{ font-family:var(--font-mono); text-transform:uppercase; font-size:0.72rem; color:var(--gray); letter-spacing:0.08em; }
+  .stat-value{ font-size:1.9rem; font-family:var(--font-display); font-weight:700; }
+  .stat-note{ font-size:0.82rem; color:var(--gray); line-height:1.4; }
+  .table-wrap{ overflow-x:auto; }
+  table{ width:100%; border-collapse:separate; border-spacing:0; min-width:900px; }
+  th,td{ text-align:left; padding:14px 16px; border-bottom:1px solid var(--surface-2); vertical-align:middle; }
+  th{ font-family:var(--font-mono); font-size:0.72rem; text-transform:uppercase; color:var(--gray); letter-spacing:0.08em; position:sticky; top:0; background:var(--surface); z-index:1; }
+  td{ font-size:0.9rem; color:var(--ink); }
+  tbody tr:hover{ background:rgba(5,173,152,0.06); }
+  .badge{ display:inline-flex; align-items:center; justify-content:center; border-radius:999px; padding:6px 10px; font-family:var(--font-mono); font-size:0.75rem; font-weight:700; letter-spacing:0.02em; }
+  .badge.available{ color:#0F766E; background:rgba(5,173,152,0.13); }
+  .badge.enroute{ color:#1D4ED8; background:rgba(59,130,246,0.14); }
+  .badge.busy{ color:#92400E; background:rgba(245,158,11,0.14); }
+  .badge.offline{ color:#475569; background:rgba(148,163,184,0.14); }
+  .status-cell{ min-width:120px; }
+  .actions{ display:flex; gap:8px; justify-content:flex-end; }
+  .action-pill{ border:1px solid var(--surface-2); border-radius:12px; background:#fff; padding:8px 10px; font-size:0.82rem; color:var(--gray); cursor:pointer; transition:background .15s ease, color .15s ease; }
+  .action-pill:hover{ background:var(--surface-2); color:var(--ink); }
+  .action-pill.danger{ color:var(--red); }
+  .action-pill.edit{ color:var(--blue); }
+  .table-empty{ text-align:center; color:var(--gray); font-family:var(--font-mono); padding:40px 0; }
+  .modal-backdrop{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(15,23,42,0.35); z-index:1000; padding:20px; }
+  .modal-backdrop.show{ display:flex; }
+  .modal{ width:100%; max-width:520px; background:var(--surface); border-radius:22px; box-shadow:0 28px 80px rgba(15,23,42,0.18); overflow:hidden; }
+  .modal-head{ padding:22px 24px 14px; border-bottom:1px solid var(--surface-2); }
+  .modal-head h2{ margin:0; font-family:var(--font-display); font-size:1.1rem; }
+  .modal-body{ padding:20px 24px 24px; display:grid; gap:16px; }
+  .field{ display:flex; flex-direction:column; gap:8px; }
+  .field label{ font-size:0.82rem; font-weight:600; color:var(--gray); }
+  .field input, .field select{ width:100%; border:1px solid var(--surface-2); border-radius:14px; padding:12px 14px; font-size:0.95rem; color:var(--ink); background:#fff; }
+  .field input:focus, .field select:focus{ outline:none; border-color:var(--teal); box-shadow:0 0 0 4px rgba(5,173,152,0.12); }
+  .modal-foot{ padding:16px 24px 22px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--surface-2); }
+  .notice{ font-family:var(--font-mono); font-size:0.82rem; color:var(--gray); }
+  .alert{ font-family:var(--font-mono); color:var(--red); font-size:0.85rem; }
+  .toast-viewport{ position:fixed; top:20px; right:20px; z-index:1500; display:flex; flex-direction:column; gap:12px; width:min(360px, calc(100% - 32px)); pointer-events:none; }
+  .toast{ display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; padding:14px 16px; border-radius:16px; box-shadow:0 18px 46px rgba(15,23,42,0.18); border:1px solid rgba(15,23,42,0.08); background:#fff; color:var(--ink); opacity:0; transform:translateX(18px); animation:toastIn .24s ease forwards; pointer-events:auto; }
+  .toast.success{ background:#ECFDF5; border-color:rgba(22,163,74,0.18); color:#164E2A; }
+  .toast.error{ background:#FEE2E2; border-color:rgba(220,38,38,0.18); color:#7F1D1D; }
+  .toast-icon{ width:34px; height:34px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:rgba(255,255,255,0.6); font-size:1.1rem; }
+  .toast.success .toast-icon{ background:rgba(22,163,74,0.16); color:#166534; }
+  .toast.error .toast-icon{ background:rgba(220,38,38,0.16); color:#B91C1C; }
+  .toast-body{ display:flex; flex-direction:column; gap:4px; }
+  .toast-title{ font-weight:700; font-size:0.94rem; line-height:1.2; }
+  .toast-message{ font-size:0.9rem; line-height:1.3; }
+  .toast-close{ border:none; background:none; color:inherit; cursor:pointer; font-size:1.1rem; opacity:0.7; padding:6px; }
+  .toast-close:hover{ opacity:1; }
+  .toast.hide{ animation:toastOut .2s ease forwards; }
+  @keyframes toastIn{ to{ opacity:1; transform:translateX(0); } }
+  @keyframes toastOut{ to{ opacity:0; transform:translateX(16px); } }
+  @media (max-width:980px){ .toolbar{ grid-template-columns:1fr; } .stats-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (max-width:640px){ .stats-grid{ grid-template-columns:1fr; } table{ min-width:720px; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <div class="brand"><span class="brand-dot"></span>Responder Management</div>
+    <div class="top-actions">
+      <button class="button-secondary" id="back-dashboard">Back to dashboard</button>
+      <button class="button-primary button-icon" id="open-add"><span class="material-symbols-rounded">add</span>Add Responder</button>
+    </div>
+  </div>
+  <p class="page-copy">Manage the responder roster with live updates from Firestore. Add, edit, or retire responders while dispatch operations remain stable in the existing dashboard.</p>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h1>Roster controls</h1>
+      <div class="summary" id="status-summary">Loading responders…</div>
+    </div>
+    <div class="toolbar">
+      <label class="search-box" for="search-input">
+        <span class="material-symbols-rounded">search</span>
+        <input id="search-input" type="search" placeholder="Search callsign, name, or unit type" autocomplete="off" />
+      </label>
+      <div class="button-secondary" id="show-all-count">Showing all</div>
+    </div>
+    <div class="status-filters" id="status-filters"></div>
+    <div class="stats-grid" id="stats-grid"></div>
+    <div class="table-wrap">
+      <table aria-label="Responder roster table">
+        <thead>
+          <tr>
+            <th>Callsign</th>
+            <th>Name</th>
+            <th>Unit type</th>
+            <th class="status-cell">Status</th>
+            <th>Assigned incident</th>
+            <th>Last updated</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="responder-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast-viewport" id="toast-viewport" aria-live="polite" aria-atomic="false"></div>
+
+<div class="modal-backdrop" id="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h2 id="modal-title">Add responder</h2>
+    </div>
+    <form class="modal-body" id="responder-form">
+      <div class="field">
+        <label for="responder-name">Name</label>
+        <input id="responder-name" name="name" type="text" maxlength="60" autocomplete="off" required />
+      </div>
+      <div class="field">
+        <label for="responder-callsign">Callsign</label>
+        <input id="responder-callsign" name="callsign" type="text" maxlength="24" autocomplete="off" required />
+      </div>
+      <div class="field">
+        <label for="responder-unit">Unit type</label>
+        <input id="responder-unit" name="unitType" type="text" maxlength="40" autocomplete="off" required />
+      </div>
+      <div class="field">
+        <label for="responder-status">Status</label>
+        <select id="responder-status" name="status" required>
+          <option value="available">Available</option>
+          <option value="enroute">En route</option>
+          <option value="busy">Busy</option>
+          <option value="offline">Offline</option>
+        </select>
+      </div>
+      <p class="notice">Only responder name, callsign, unit type and status are managed here. Assigned incidents remain untouched.</p>
+      <p class="alert" id="form-alert" role="alert" aria-live="assertive"></p>
+    </form>
+    <div class="modal-foot">
+      <button class="button-secondary" id="cancel-modal" type="button">Cancel</button>
+      <button class="button-primary" id="save-responder" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, db } from './firebase-init.js';
+  import {
+    collection,
+    query,
+    orderBy,
+    onSnapshot,
+    doc,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    serverTimestamp
+  } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+  import { escapeHtml, getRelativeTime } from './utils.js';
+
+  const STATUS_OPTIONS = ['all', 'available', 'enroute', 'busy', 'offline'];
+  const STATUS_LABELS = {
+    available: 'Available',
+    enroute: 'En route',
+    busy: 'Busy',
+    offline: 'Offline'
+  };
+  const STATUS_CLASSES = {
+    available: 'available',
+    enroute: 'enroute',
+    busy: 'busy',
+    offline: 'offline'
+  };
+
+  const searchInput = document.getElementById('search-input');
+  const statusFilters = document.getElementById('status-filters');
+  const tableBody = document.getElementById('responder-table-body');
+  const statusSummary = document.getElementById('status-summary');
+  const statsGrid = document.getElementById('stats-grid');
+  const showAllCount = document.getElementById('show-all-count');
+  const modalBackdrop = document.getElementById('modal-backdrop');
+  const modalTitle = document.getElementById('modal-title');
+  const responderForm = document.getElementById('responder-form');
+  const formAlert = document.getElementById('form-alert');
+  const openAddButton = document.getElementById('open-add');
+  const cancelModal = document.getElementById('cancel-modal');
+  const saveResponderButton = document.getElementById('save-responder');
+  const backDashboard = document.getElementById('back-dashboard');
+
+  let responders = [];
+  let activeFilter = 'all';
+  let searchTerm = '';
+  let editingId = null;
+
+  function formatDateLabel(timestamp) {
+    if (!timestamp) return '—';
+    const millis = timestamp.toMillis ? timestamp.toMillis() : timestamp;
+    return getRelativeTime(millis);
+  }
+
+  function showToast(message, type = 'success') {
+    const toastViewport = document.getElementById('toast-viewport');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.setAttribute('role', 'status');
+    toast.innerHTML = `
+      <span class="toast-icon material-symbols-rounded">${type === 'success' ? 'check_circle' : 'error_outline'}</span>
+      <div class="toast-body">
+        <span class="toast-title">${type === 'success' ? 'Success' : 'Error'}</span>
+        <span class="toast-message">${escapeHtml(message)}</span>
+      </div>
+      <button type="button" class="toast-close" aria-label="Dismiss notification">×</button>
+    `;
+
+    const removeToast = () => {
+      toast.classList.add('hide');
+      toast.addEventListener('animationend', () => toast.remove(), { once: true });
+    };
+
+    toast.querySelector('.toast-close').addEventListener('click', removeToast);
+    toastViewport.appendChild(toast);
+    window.setTimeout(removeToast, 3000);
+  }
+
+  function renderStatusFilters() {
+    statusFilters.innerHTML = STATUS_OPTIONS.map((status) => {
+      const label = status === 'all' ? 'All statuses' : STATUS_LABELS[status];
+      const active = status === activeFilter ? ' active' : '';
+      return `<button type="button" class="filter-chip${active}" data-status="${status}">${escapeHtml(label)}</button>`;
+    }).join('');
+  }
+
+  function renderStats() {
+    const total = responders.length;
+    const counts = {
+      available: responders.filter((r) => r.status === 'available').length,
+      enroute: responders.filter((r) => r.status === 'enroute').length,
+      busy: responders.filter((r) => r.status === 'busy').length,
+      offline: responders.filter((r) => r.status === 'offline').length
+    };
+    statusSummary.textContent = `${total} responders — ${counts.available} available, ${counts.enroute} en route, ${counts.busy} busy, ${counts.offline} offline`;
+    statsGrid.innerHTML = [
+      { label: 'Total units', value: total },
+      { label: 'Available', value: counts.available },
+      { label: 'En route', value: counts.enroute },
+      { label: 'Busy / offline', value: counts.busy + counts.offline }
+    ].map((item) => `
+      <div class="stat-card">
+        <div class="stat-label">${escapeHtml(item.label)}</div>
+        <div class="stat-value">${escapeHtml(String(item.value))}</div>
+      </div>
+    `).join('');
+  }
+
+  function getFilteredResponders() {
+    const search = searchTerm.trim().toLowerCase();
+    return responders.filter((responder) => {
+      if (activeFilter !== 'all' && responder.status !== activeFilter) return false;
+      if (!search) return true;
+      const fields = [responder.callsign, responder.name, responder.unitType].join(' ');
+      return String(fields).toLowerCase().includes(search);
+    });
+  }
+
+  function renderTable() {
+    const filtered = getFilteredResponders();
+    showAllCount.textContent = `Showing ${filtered.length} of ${responders.length}`;
+    if (!filtered.length) {
+      tableBody.innerHTML = `
+        <tr><td colspan="7" class="table-empty">No responders match the search or filter. Adjust the search term or status filter.</td></tr>
+      `;
+      return;
+    }
+
+    tableBody.innerHTML = filtered.map((responder) => {
+      const status = STATUS_LABELS[responder.status] || 'Busy';
+      const badgeClass = STATUS_CLASSES[responder.status] || 'busy';
+      const assigned = responder.currentReportId ? `#${escapeHtml(String(responder.currentReportId).slice(-6).toUpperCase())}` : '—';
+      const updated = formatDateLabel(responder.updatedAt || responder.statusUpdatedAt);
+      return `
+        <tr>
+          <td>${escapeHtml(responder.callsign || '—')}</td>
+          <td>${escapeHtml(responder.name || '—')}</td>
+          <td>${escapeHtml(responder.unitType || '—')}</td>
+          <td class="status-cell"><span class="badge ${badgeClass}">${escapeHtml(status)}</span></td>
+          <td>${assigned}</td>
+          <td>${escapeHtml(updated)}</td>
+          <td class="actions">
+            <button type="button" class="action-pill edit" data-action="edit" data-id="${escapeHtml(responder.id)}">Edit</button>
+            <button type="button" class="action-pill danger" data-action="delete" data-id="${escapeHtml(responder.id)}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function openModal(mode, responder = null) {
+    formAlert.textContent = '';
+    responderForm.reset();
+    editingId = null;
+    modalTitle.textContent = mode === 'edit' ? 'Edit responder' : 'Add responder';
+
+    if (responder) {
+      editingId = responder.id;
+      responderForm.elements.name.value = responder.name || '';
+      responderForm.elements.callsign.value = responder.callsign || '';
+      responderForm.elements.unitType.value = responder.unitType || '';
+      responderForm.elements.status.value = responder.status || 'available';
+    } else {
+      responderForm.elements.status.value = 'available';
+    }
+
+    modalBackdrop.classList.add('show');
+    modalBackdrop.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeModal() {
+    modalBackdrop.classList.remove('show');
+    modalBackdrop.setAttribute('aria-hidden', 'true');
+    editingId = null;
+  }
+
+  async function saveResponder() {
+    const name = responderForm.elements.name.value.trim();
+    const callsign = responderForm.elements.callsign.value.trim();
+    const unitType = responderForm.elements.unitType.value.trim();
+    const status = responderForm.elements.status.value;
+
+    if (!name || !callsign || !unitType) {
+      formAlert.textContent = 'Name, callsign, and unit type are required.';
+      return;
+    }
+    if (!['available', 'enroute', 'busy', 'offline'].includes(status)) {
+      formAlert.textContent = 'Invalid status selected.';
+      return;
+    }
+
+    const payload = {
+      name,
+      callsign,
+      unitType,
+      status,
+      available: status === 'available',
+      statusUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+
+    const responderDoc = editingId ? responders.find((item) => item.id === editingId) : null;
+    if (responderDoc && status === 'available' && responderDoc.currentReportId) {
+      payload.currentReportId = null;
+    }
+
+    try {
+      console.groupCollapsed('Responder save debug');
+      console.log('auth.currentUser:', auth.currentUser);
+      console.log('auth.currentUser?.uid:', auth.currentUser?.uid);
+      console.log('authenticated:', Boolean(auth.currentUser));
+      const operation = editingId ? 'updateDoc' : 'addDoc';
+      const path = editingId ? `responders/${editingId}` : 'responders/<new>';
+      console.log('operation:', operation);
+      console.log('path:', path);
+      console.log('data payload:', payload);
+      console.groupEnd();
+
+      if (editingId) {
+        console.log('Executing updateDoc on responders/' + editingId, payload);
+        await updateDoc(doc(db, 'responders', editingId), payload);
+        closeModal();
+        showToast('Responder updated successfully.', 'success');
+      } else {
+        console.log('Executing addDoc on responders', { ...payload, currentReportId: null });
+        await addDoc(collection(db, 'responders'), {
+          ...payload,
+          currentReportId: null
+        });
+        closeModal();
+        showToast('Responder added successfully.', 'success');
+      }
+    } catch (error) {
+      formAlert.textContent = 'Unable to save responder. Please try again.';
+      console.error(error);
+      showToast('Unable to save responder. Please try again.', 'error');
+    }
+  }
+
+  async function deleteResponder(responderId) {
+    const responder = responders.find((item) => item.id === responderId);
+    if (!responder) return;
+    if (responder.currentReportId) {
+      alert('This responder is currently assigned to an incident. Clear the assignment before deleting.');
+      return;
+    }
+    const confirmed = confirm(`Delete ${responder.callsign || responder.name || 'this responder'}? This cannot be undone.`);
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, 'responders', responderId));
+      showToast('Responder deleted successfully.', 'success');
+    } catch (error) {
+      formAlert.textContent = 'Unable to delete responder. Please try again.';
+      console.error('Responder delete failed', error);
+      showToast('Unable to delete responder. Please try again.', 'error');
+    }
+  }
+
+  openAddButton.addEventListener('click', () => openModal('add'));
+  cancelModal.addEventListener('click', closeModal);
+  saveResponderButton.addEventListener('click', saveResponder);
+  modalBackdrop.addEventListener('click', (event) => { if (event.target === modalBackdrop) closeModal(); });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && modalBackdrop.classList.contains('show')) closeModal(); });
+  backDashboard.addEventListener('click', () => { window.location.href = 'signal-dashboard.html'; });
+
+  searchInput.addEventListener('input', (event) => {
+    searchTerm = event.target.value;
+    renderTable();
+  });
+
+  statusFilters.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-status]');
+    if (!button) return;
+    activeFilter = button.dataset.status;
+    renderStatusFilters();
+    renderTable();
+  });
+
+  tableBody.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action]');
+    if (!button) return;
+    const action = button.dataset.action;
+    const responderId = button.dataset.id;
+    if (action === 'edit') {
+      const responder = responders.find((item) => item.id === responderId);
+      if (responder) openModal('edit', responder);
+      return;
+    }
+    if (action === 'delete') {
+      deleteResponder(responderId);
+      return;
+    }
+  });
+
+  function initResponderManagement() {
+    renderStatusFilters();
+    const respondersQuery = query(collection(db, 'responders'), orderBy('callsign'));
+    onSnapshot(respondersQuery, (snapshot) => {
+      responders = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      renderStats();
+      renderTable();
+    }, (error) => {
+      console.error('Responder snapshot failed', error);
+      statusSummary.textContent = 'Unable to load responders.';
+    });
+  }
+
+  initResponderManagement();
+</script>
+</body>
+</html>
