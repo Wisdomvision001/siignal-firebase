@@ -74,13 +74,10 @@ service cloud.firestore {
 
     // ---------------- responders ----------------
     match /responders/{responderId} {
-      allow read: if isSignedIn();
-      // Dispatchers manage the roster; a responder may only update their
-      // own doc (e.g. sharing live location, changing their own status).
-      allow create, delete: if isDispatcher();
-      allow update: if isDispatcher() ||
-        (isResponder() &&
-         get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.responderId == responderId);
+      allow get, list: if isStaffMember();
+      allow create: if isStaffMember();
+      allow update: if isStaffMember();
+      allow delete: if isDispatcher();
     }
 
     // ---------------- reports ----------------
