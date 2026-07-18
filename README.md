@@ -230,3 +230,5 @@ runner.
 - `signal-track.html` — citizen tracking page (real-time status + live
   responder position, once shared)
 - `test_utils.mjs` — unit tests (`node --test test_utils.mjs`)
+#   s i g n a l  
+ 
