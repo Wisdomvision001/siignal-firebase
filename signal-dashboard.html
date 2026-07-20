@@ -350,7 +350,7 @@
   import {
     collection, query, orderBy, limit, onSnapshot, doc, updateDoc, getDoc, serverTimestamp
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-  import { escapeHtml, getRelativeTime, formatDispatchTime, DISPATCH_CENTER } from './utils.js';
+  import { escapeHtml, getRelativeTime, formatRelativeTime, formatLocalDateTime, formatDispatchTime, DISPATCH_CENTER } from './utils.js';
   import { logAuditEvent } from './dispatch.js';
 
   const authGate = document.getElementById('auth-gate');
@@ -384,7 +384,7 @@
   });
 
   function tick() {
-    document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString(undefined, { hour12: false });
   }
   tick(); setInterval(tick, 1000);
 
@@ -516,8 +516,25 @@
 
   function renderReportDetails(report) {
     const reportedAt = report.createdAt
-      ? new Date(report.createdAt.toMillis ? report.createdAt.toMillis() : report.createdAt).toLocaleString('en-US', { hour12: false })
+      ? formatRelativeTime(report.createdAt)
       : 'Not provided';
+
+    if (!timestampDebugLogged && report.createdAt) {
+      const rawTimestamp = report.createdAt;
+      const timestampDate = rawTimestamp.toDate ? rawTimestamp.toDate() : (rawTimestamp instanceof Date ? rawTimestamp : null);
+      const nowMs = Date.now();
+      const timestampMs = rawTimestamp.toMillis ? rawTimestamp.toMillis() : (rawTimestamp instanceof Date ? rawTimestamp.getTime() : null);
+      console.log('TEMP DEBUG report timestamp', {
+        reportId: report.id,
+        rawFirestoreTimestamp: rawTimestamp,
+        toDateValue: timestampDate,
+        nowMs,
+        diffMs: timestampMs != null ? nowMs - timestampMs : null,
+        displayedRelativeTime: reportedAt
+      });
+      timestampDebugLogged = true;
+    }
+
     const location = report.location || report.address || 'Not provided';
     const reporter = report.reporterName || report.reporter || 'Not provided';
     const phoneNumber = report.phone || report.phoneNumber || report.reporterPhone || '';
@@ -527,7 +544,7 @@
     const responderStatus = report.responderStatus ? escapeHtml(report.responderStatus) : report.responderName ? 'Unknown' : null;
     const dispatchTime = report.dispatchTimeMinutes != null ? `${escapeHtml(String(report.dispatchTimeMinutes))} minutes` : 'Not provided';
     const resolutionTime = report.status === 'resolved' && report.updatedAt
-      ? new Date(report.updatedAt.toMillis ? report.updatedAt.toMillis() : report.updatedAt).toLocaleString('en-US', { hour12: false })
+      ? formatLocalDateTime(report.updatedAt)
       : report.status === 'resolved'
         ? 'Resolved time not available'
         : 'Not resolved';
@@ -619,6 +636,26 @@
   let reports = [];
   let responders = [];
   let activeFilter = 'all';
+  let timestampDebugLogged = false;
+
+  function getReportCreatedAtMillis(report) {
+    if (!report || report.createdAt == null) return null;
+    if (typeof report.createdAt === 'number') return report.createdAt;
+    if (report.createdAt.toMillis) return report.createdAt.toMillis();
+    if (report.createdAt instanceof Date) return report.createdAt.getTime();
+    return null;
+  }
+
+  function sortReportsByNewest(reportsArray) {
+    return reportsArray.slice().sort((a, b) => {
+      const aMillis = getReportCreatedAtMillis(a);
+      const bMillis = getReportCreatedAtMillis(b);
+      if (aMillis === null && bMillis === null) return 0;
+      if (aMillis === null) return 1;
+      if (bMillis === null) return -1;
+      return bMillis - aMillis;
+    });
+  }
 
   function renderStats() {
     const activeCount = reports.filter((r) => r.status !== 'resolved').length;
@@ -675,9 +712,10 @@
     });
 
     const active = reports.filter((r) => r.status !== 'resolved');
-    console.log('renderMap: total active reports', active.length);
+    const orderedActive = sortReportsByNewest(active);
+    console.log('renderMap: total active reports', orderedActive.length);
 
-    const validReports = active.filter((r) => {
+    const validReports = orderedActive.filter((r) => {
       const valid = typeof r.lat === 'number' && typeof r.lon === 'number';
       if (!valid) {
         console.log(`renderMap: skipped report id=${r.id}`, {
@@ -760,8 +798,23 @@
 
   function renderReports() {
     const filtered = activeFilter === 'all' ? reports : reports.filter((r) => r.status === activeFilter);
-    document.getElementById('report-count').textContent = `${filtered.length} of ${reports.length}`;
-    document.getElementById('report-list').innerHTML = filtered.map((r) => `
+    const ordered = sortReportsByNewest(filtered);
+    document.getElementById('report-count').textContent = `${ordered.length} of ${reports.length}`;
+    if (ordered.length > 0) {
+      const report = ordered[0];
+      if (report.createdAt && !window.newestReportDebugLogged) {
+        console.log('Current browser time:', new Date());
+        console.log('Browser timestamp:', Date.now());
+        console.log('Firestore Timestamp:', report.createdAt);
+        console.log('Firestore JS Date:', report.createdAt?.toDate?.());
+        console.log('Firestore milliseconds:', report.createdAt?.toMillis?.());
+        console.log('Timezone offset:', new Date().getTimezoneOffset());
+        console.log('Difference (seconds):', (Date.now() - report.createdAt.toMillis()) / 1000);
+        console.log('Difference (minutes):', (Date.now() - report.createdAt.toMillis()) / 60000);
+        window.newestReportDebugLogged = true;
+      }
+    }
+    document.getElementById('report-list').innerHTML = ordered.map((r) => `
       <div class="report-row ${escapeHtml(r.urgency)}" data-id="${escapeHtml(r.id)}">
         <span class="report-id">#${escapeHtml(r.id.slice(-6).toUpperCase())}</span>
         <div class="report-main">
@@ -805,10 +858,10 @@
       (snapshot) => {
         console.log('Reports received:', snapshot.size);
 
-        reports = snapshot.docs.map((d) => ({
+        reports = sortReportsByNewest(snapshot.docs.map((d) => ({
           id: d.id,
           ...d.data()
-        }));
+        })));
 
         console.log('Before renderAll() [reports]');
         renderAll();

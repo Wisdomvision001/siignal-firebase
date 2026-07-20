@@ -81,13 +81,53 @@ export function dispatchMinutesFor(urgency) {
   return URGENCY_DISPATCH_MINUTES[urgency] || 7;
 }
 
+export function getTimestampMillis(value) {
+  if (value == null) return null;
+  if (typeof value === 'number') return value;
+  if (value.toMillis) return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function formatLocalDateTime(value) {
+  const millis = getTimestampMillis(value);
+  if (millis == null) return '';
+  return new Date(millis).toLocaleString(undefined, { hour12: false });
+}
+
+export function formatLocalTime(value) {
+  const millis = getTimestampMillis(value);
+  if (millis == null) return '';
+  return new Date(millis).toLocaleTimeString(undefined, { hour12: false });
+}
+
+export function formatRelativeTime(value) {
+  const timestampMs = getTimestampMillis(value);
+  if (timestampMs == null) return '';
+
+  const now = Date.now();
+  const diffSeconds = Math.floor((now - timestampMs) / 1000);
+  if (diffSeconds < 0) return formatLocalDateTime(timestampMs);
+  if (diffSeconds < 45) return 'Just now';
+  if (diffSeconds < 90) return '1 min ago';
+
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) return `${diffMinutes} min${diffMinutes === 1 ? '' : 's'} ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+
+  const date = new Date(timestampMs);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+
+  return formatLocalDateTime(timestampMs);
+}
+
 export function getRelativeTime(timestampMs) {
-  const diff = Math.max(1, Math.round((Date.now() - timestampMs) / 60000));
-  if (diff < 60) return `${diff} min ago`;
-  const hours = Math.floor(diff / 60);
-  if (hours < 24) return `${hours} hr ago`;
-  const days = Math.floor(hours / 24);
-  return `${days} day${days > 1 ? "s" : ""} ago`;
+  return formatRelativeTime(timestampMs);
 }
 
 export function formatDispatchTime(minutes) {

@@ -425,7 +425,11 @@
     useLocBtn.textContent = 'Getting location...';
     try {
       const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000 });
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 0
+        });
       });
       const lat = position.coords.latitude;
       const lon = position.coords.longitude;
@@ -447,6 +451,7 @@
       const address = await reverseGeocode(lat, lon);
       applyLocation(lat, lon, address ? address.short : `Current location — ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
     } catch (error) {
+      console.error('Geolocation error:', error.code, error.message);
       useLocBtn.disabled = false;
       useLocBtn.textContent = 'Use my location';
       alert('Could not get your device location. You can still type it manually below.');
