@@ -211,6 +211,7 @@
     <div class="logo"><span class="logo-dot"></span>Signal</div>
     <a class="nav-item active" href="#overview-panel" data-view="overview"><i class="fa-solid fa-gauge-high"></i>Dashboard</a>
     <a class="nav-item" href="#report-panel" data-view="overview"><i class="fa-solid fa-clipboard-list"></i>Reports</a>
+    <a class="nav-item" href="#archive-panel" data-view="archive"><i class="fa-solid fa-archive"></i>Archive</a>
     <a class="nav-item" href="#responders-panel" data-view="overview"><i class="fa-solid fa-people-group"></i>Responders</a>
     <a class="nav-item" href="#activity-panel" data-view="activity"><i class="fa-solid fa-list-check"></i>Audit log</a>
     <div class="sidebar-foot">
@@ -290,6 +291,13 @@
         </div>
       </div>
 
+      <div class="view" id="view-archive">
+        <div class="panel" id="archive-panel">
+          <div class="panel-head"><h2><i class="fa-solid fa-archive"></i> Archive</h2><span class="count" id="archive-count">0 archived</span></div>
+          <div class="report-list" id="archive-report-list"></div>
+        </div>
+      </div>
+
       <!-- ACTIVITY VIEW -->
       <div class="view" id="view-activity">
         <div class="panel" id="activity-panel">
@@ -346,11 +354,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
 <script type="module">
-  import { db } from './firebase-init.js';
+  import { db, storage } from './firebase-init.js';
   import {
-    collection, query, orderBy, limit, onSnapshot, doc, updateDoc, getDoc, serverTimestamp
+    collection, query, orderBy, limit, onSnapshot, doc, updateDoc, deleteDoc, getDoc, serverTimestamp
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-  import { escapeHtml, getRelativeTime, formatRelativeTime, formatLocalDateTime, formatDispatchTime, DISPATCH_CENTER } from './utils.js';
+  import { ref as storageRef, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
+  import { escapeHtml, getRelativeTime, formatDispatchTime, DISPATCH_CENTER } from './utils.js';
   import { logAuditEvent } from './dispatch.js';
 
   const authGate = document.getElementById('auth-gate');
@@ -360,13 +369,7 @@
   authGate.classList.add('hidden');
   appRoot.style.display = 'grid';
 
-  console.log('Step 1');
-  console.log(appRoot);
-  console.log(authGate);
-
   initDashboard();
-
-  console.log('Step 2');
 
   document.getElementById('logout-btn').addEventListener('click', () => {
     window.location.href = 'signal-landing.html';
@@ -384,7 +387,7 @@
   });
 
   function tick() {
-    document.getElementById('clock').textContent = new Date().toLocaleTimeString(undefined, { hour12: false });
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
   }
   tick(); setInterval(tick, 1000);
 
@@ -516,25 +519,8 @@
 
   function renderReportDetails(report) {
     const reportedAt = report.createdAt
-      ? formatRelativeTime(report.createdAt)
+      ? new Date(report.createdAt.toMillis ? report.createdAt.toMillis() : report.createdAt).toLocaleString('en-US', { hour12: false })
       : 'Not provided';
-
-    if (!timestampDebugLogged && report.createdAt) {
-      const rawTimestamp = report.createdAt;
-      const timestampDate = rawTimestamp.toDate ? rawTimestamp.toDate() : (rawTimestamp instanceof Date ? rawTimestamp : null);
-      const nowMs = Date.now();
-      const timestampMs = rawTimestamp.toMillis ? rawTimestamp.toMillis() : (rawTimestamp instanceof Date ? rawTimestamp.getTime() : null);
-      console.log('TEMP DEBUG report timestamp', {
-        reportId: report.id,
-        rawFirestoreTimestamp: rawTimestamp,
-        toDateValue: timestampDate,
-        nowMs,
-        diffMs: timestampMs != null ? nowMs - timestampMs : null,
-        displayedRelativeTime: reportedAt
-      });
-      timestampDebugLogged = true;
-    }
-
     const location = report.location || report.address || 'Not provided';
     const reporter = report.reporterName || report.reporter || 'Not provided';
     const phoneNumber = report.phone || report.phoneNumber || report.reporterPhone || '';
@@ -544,7 +530,7 @@
     const responderStatus = report.responderStatus ? escapeHtml(report.responderStatus) : report.responderName ? 'Unknown' : null;
     const dispatchTime = report.dispatchTimeMinutes != null ? `${escapeHtml(String(report.dispatchTimeMinutes))} minutes` : 'Not provided';
     const resolutionTime = report.status === 'resolved' && report.updatedAt
-      ? formatLocalDateTime(report.updatedAt)
+      ? new Date(report.updatedAt.toMillis ? report.updatedAt.toMillis() : report.updatedAt).toLocaleString('en-US', { hour12: false })
       : report.status === 'resolved'
         ? 'Resolved time not available'
         : 'Not resolved';
@@ -636,35 +622,56 @@
   let reports = [];
   let responders = [];
   let activeFilter = 'all';
-  let timestampDebugLogged = false;
 
-  function getReportCreatedAtMillis(report) {
-    if (!report || report.createdAt == null) return null;
-    if (typeof report.createdAt === 'number') return report.createdAt;
-    if (report.createdAt.toMillis) return report.createdAt.toMillis();
-    if (report.createdAt instanceof Date) return report.createdAt.getTime();
-    return null;
+  function activeReports() {
+    return reports.filter((r) => r.archived !== true);
   }
 
-  function sortReportsByNewest(reportsArray) {
-    return reportsArray.slice().sort((a, b) => {
-      const aMillis = getReportCreatedAtMillis(a);
-      const bMillis = getReportCreatedAtMillis(b);
-      if (aMillis === null && bMillis === null) return 0;
-      if (aMillis === null) return 1;
-      if (bMillis === null) return -1;
-      return bMillis - aMillis;
-    });
+  function archivedReports() {
+    return reports.filter((r) => r.archived === true);
+  }
+
+  function reportCardHtml(report, showActions = true, showDelete = false) {
+    return `
+      <div class="report-row ${escapeHtml(report.urgency)}" data-id="${escapeHtml(report.id)}">
+        <span class="report-id">#${escapeHtml(report.id.slice(-6).toUpperCase())}</span>
+        <div class="report-main">
+          <span class="report-loc">${escapeHtml(report.location)}<span class="type">${escapeHtml(report.type)}</span></span>
+          <span class="report-note">${escapeHtml(report.description || 'No additional notes')}</span>
+          <span class="report-links">
+            <span class="show-map-btn" data-id="${escapeHtml(report.id)}"><i class="fa-solid fa-location-dot"></i> View map</span>
+            ${report.photos && report.photos.length ? `<span class="show-photos-btn" data-id="${escapeHtml(report.id)}"><i class="fa-solid fa-camera"></i> ${report.photos.length} photo${report.photos.length > 1 ? 's' : ''}</span>` : ''}
+          </span>
+        </div>
+        <div class="report-actions">
+          <span class="badge ${escapeHtml(report.status)}">${escapeHtml(report.status)}</span>
+          ${showActions ? `
+          <div class="mini-actions">
+            <button class="mini-action" data-id="${escapeHtml(report.id)}" data-action="dispatched">Dispatch</button>
+            <button class="mini-action" data-id="${escapeHtml(report.id)}" data-action="enroute">En route</button>
+            <button class="mini-action" data-id="${escapeHtml(report.id)}" data-action="resolved">Resolve</button>
+          </div>
+          ` : ''}
+          ${showDelete ? `
+          <div class="mini-actions">
+            <button class="mini-action delete-action" data-id="${escapeHtml(report.id)}">Delete</button>
+          </div>
+          ` : ''}
+        </div>
+        <span class="report-time">${report.createdAt ? escapeHtml(getRelativeTime(report.createdAt.toMillis ? report.createdAt.toMillis() : report.createdAt)) : '—'}</span>
+      </div>
+    `;
   }
 
   function renderStats() {
-    const activeCount = reports.filter((r) => r.status !== 'resolved').length;
-    const avgMinutes = reports.length
-      ? Math.round(reports.reduce((sum, r) => sum + (r.dispatchTimeMinutes || 0), 0) / reports.length)
+    const active = activeReports();
+    const activeCount = active.filter((r) => r.status !== 'resolved').length;
+    const avgMinutes = active.length
+      ? Math.round(active.reduce((sum, r) => sum + (r.dispatchTimeMinutes || 0), 0) / active.length)
       : 0;
     const onlineCount = responders.filter((r) => r.status !== 'offline').length;
     const todayStr = new Date().toDateString();
-    const resolvedToday = reports.filter((r) => r.status === 'resolved' && r.updatedAt && new Date(r.updatedAt.toMillis ? r.updatedAt.toMillis() : r.updatedAt).toDateString() === todayStr).length;
+    const resolvedToday = active.filter((r) => r.status === 'resolved' && r.updatedAt && new Date(r.updatedAt.toMillis ? r.updatedAt.toMillis() : r.updatedAt).toDateString() === todayStr).length;
 
     document.getElementById('stat-active').textContent = activeCount;
     document.getElementById('stat-dispatch').textContent = formatDispatchTime(avgMinutes);
@@ -701,34 +708,11 @@
     ensureOverviewMap();
     overviewMarkersLayer.clearLayers();
 
-    console.log('renderMap: total reports loaded', reports.length);
-    reports.forEach((report, idx) => {
-      console.log(`renderMap: report[${idx}] id=${report.id}`, {
-        lat: report.lat,
-        lon: report.lon,
-        status: report.status,
-        urgency: report.urgency
-      });
-    });
+    const active = activeReports().filter((r) => r.status !== 'resolved');
 
-    const active = reports.filter((r) => r.status !== 'resolved');
-    const orderedActive = sortReportsByNewest(active);
-    console.log('renderMap: total active reports', orderedActive.length);
-
-    const validReports = orderedActive.filter((r) => {
-      const valid = typeof r.lat === 'number' && typeof r.lon === 'number';
-      if (!valid) {
-        console.log(`renderMap: skipped report id=${r.id}`, {
-          reason: 'invalid coordinates',
-          lat: r.lat,
-          lon: r.lon
-        });
-      }
-      return valid;
-    });
+    const validReports = active.filter((r) => typeof r.lat === 'number' && typeof r.lon === 'number');
 
     if (validReports.length === 0) {
-      console.log('renderMap: no valid reports to plot, centering on dispatch center');
       overviewMapInstance.setView([DISPATCH_CENTER.lat, DISPATCH_CENTER.lon], 11);
       return;
     }
@@ -770,25 +754,10 @@
         overviewMarkersLayer.addLayer(marker);
         marker.on('click', () => openReportDetails(report));
         bounds.push([markerLat, markerLon]);
-        console.log(`renderMap: created marker for report id=${report.id}`, {
-          lat: report.lat,
-          lon: report.lon,
-          markerLat,
-          markerLon,
-          urgency: report.urgency
-        });
       });
     });
 
-    console.log('renderMap: total markers added', bounds.length);
-    console.table(
-      reports.map((r) => ({
-        id: r.id,
-        lat: r.lat,
-        lon: r.lon,
-        status: r.status
-      }))
-    );
+    overviewMarkersLayer.addTo(overviewMapInstance);
     if (bounds.length === 1) {
       overviewMapInstance.setView(bounds[0], 13);
     } else {
@@ -797,52 +766,81 @@
   }
 
   function renderReports() {
-    const filtered = activeFilter === 'all' ? reports : reports.filter((r) => r.status === activeFilter);
-    const ordered = sortReportsByNewest(filtered);
-    document.getElementById('report-count').textContent = `${ordered.length} of ${reports.length}`;
-    if (ordered.length > 0) {
-      const report = ordered[0];
-      if (report.createdAt && !window.newestReportDebugLogged) {
-        console.log('Current browser time:', new Date());
-        console.log('Browser timestamp:', Date.now());
-        console.log('Firestore Timestamp:', report.createdAt);
-        console.log('Firestore JS Date:', report.createdAt?.toDate?.());
-        console.log('Firestore milliseconds:', report.createdAt?.toMillis?.());
-        console.log('Timezone offset:', new Date().getTimezoneOffset());
-        console.log('Difference (seconds):', (Date.now() - report.createdAt.toMillis()) / 1000);
-        console.log('Difference (minutes):', (Date.now() - report.createdAt.toMillis()) / 60000);
-        window.newestReportDebugLogged = true;
-      }
-    }
-    document.getElementById('report-list').innerHTML = ordered.map((r) => `
-      <div class="report-row ${escapeHtml(r.urgency)}" data-id="${escapeHtml(r.id)}">
-        <span class="report-id">#${escapeHtml(r.id.slice(-6).toUpperCase())}</span>
-        <div class="report-main">
-          <span class="report-loc">${escapeHtml(r.location)}<span class="type">${escapeHtml(r.type)}</span></span>
-          <span class="report-note">${escapeHtml(r.description || 'No additional notes')}</span>
-          <span class="report-links">
-            <span class="show-map-btn" data-id="${escapeHtml(r.id)}"><i class="fa-solid fa-location-dot"></i> View map</span>
-            ${r.photos && r.photos.length ? `<span class="show-photos-btn" data-id="${escapeHtml(r.id)}"><i class="fa-solid fa-camera"></i> ${r.photos.length} photo${r.photos.length > 1 ? 's' : ''}</span>` : ''}
-          </span>
-        </div>
-        <div class="report-actions">
-          <span class="badge ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span>
-          <div class="mini-actions">
-            <button class="mini-action" data-id="${escapeHtml(r.id)}" data-action="dispatched">Dispatch</button>
-            <button class="mini-action" data-id="${escapeHtml(r.id)}" data-action="enroute">En route</button>
-            <button class="mini-action" data-id="${escapeHtml(r.id)}" data-action="resolved">Resolve</button>
-          </div>
-        </div>
-        <span class="report-time">${r.createdAt ? escapeHtml(getRelativeTime(r.createdAt.toMillis ? r.createdAt.toMillis() : r.createdAt)) : '—'}</span>
-      </div>
-    `).join('');
+    const filtered = activeFilter === 'all' ? activeReports() : activeReports().filter((r) => r.status === activeFilter);
+    const activeList = activeReports();
+    document.getElementById('report-count').textContent = `${filtered.length} of ${activeList.length}`;
+    document.getElementById('report-list').innerHTML = filtered.map((r) => reportCardHtml(r, true)).join('');
   }
 
-  function renderAll() { renderStats(); renderResponders(); renderMap(); renderReports(); }
+  function renderArchive() {
+    const archived = archivedReports();
+    document.getElementById('archive-count').textContent = `${archived.length} archived`;
+    document.getElementById('archive-report-list').innerHTML = archived.map((r) => reportCardHtml(r, false, true)).join('');
+  }
+
+  const ARCHIVE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+
+  async function archiveExpiredResolvedReports(docs) {
+    const now = Date.now();
+    const updates = [];
+
+    for (const docSnap of docs) {
+      const data = docSnap.data();
+      if (data.status !== 'resolved' || data.archived === true || !data.resolvedAt) continue;
+      const resolvedAtMillis = data.resolvedAt.toMillis ? data.resolvedAt.toMillis() : data.resolvedAt;
+      if (typeof resolvedAtMillis !== 'number') continue;
+      if (now - resolvedAtMillis < ARCHIVE_THRESHOLD_MS) continue;
+      updates.push(updateDoc(doc(db, 'reports', docSnap.id), { archived: true, updatedAt: serverTimestamp() }));
+    }
+
+    if (!updates.length) return;
+    await Promise.all(updates);
+  }
+
+  async function deleteArchivedReportFiles(report) {
+    if (!report.photos || !report.photos.length) return;
+    const deletePromises = report.photos.map(async (url) => {
+      try {
+        const matches = url.match(/\/o\/(.*?)(?:\?|$)/);
+        if (!matches || !matches[1]) return;
+        const storagePath = decodeURIComponent(matches[1]);
+        const storageReference = storageRef(storage, storagePath);
+        await deleteObject(storageReference);
+      } catch (error) {
+        console.warn('Failed to delete storage file for archived report:', error);
+      }
+    });
+    await Promise.all(deletePromises);
+  }
+
+  async function confirmAndDeleteArchivedReport(report) {
+    if (report.archived !== true) return;
+    const confirmed = window.confirm(
+      'Are you sure you want to permanently delete this archived report?\n\nThis action cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    try {
+      await logAuditEvent(report.id, 'delete_report', 'DISPATCH OPERATOR', `Archived report deleted — ${report.type}`, {
+        incidentType: report.type
+      });
+
+      await deleteArchivedReportFiles(report);
+      await deleteDoc(doc(db, 'reports', report.id));
+    } catch (error) {
+      console.error('Failed to permanently delete archived report:', error);
+    }
+  }
+
+  function renderAll() { renderStats(); renderResponders(); renderMap(); renderReports(); renderArchive(); }
 
   async function updateReportStatus(reportId, status) {
     const reportRef = doc(db, 'reports', reportId);
-    await updateDoc(reportRef, { status, updatedAt: serverTimestamp() });
+    const updatePayload = { status, updatedAt: serverTimestamp() };
+    if (status === 'resolved') {
+      updatePayload.resolvedAt = serverTimestamp();
+    }
+    await updateDoc(reportRef, updatePayload);
     await logAuditEvent(reportId, 'status_changed', 'DISPATCH OPERATOR', `-> ${status}`);
     if (status === 'resolved') {
       const report = reports.find((r) => r.id === reportId);
@@ -856,38 +854,29 @@
     onSnapshot(
       collection(db, 'reports'),
       (snapshot) => {
-        console.log('Reports received:', snapshot.size);
-
-        reports = sortReportsByNewest(snapshot.docs.map((d) => ({
+        archiveExpiredResolvedReports(snapshot.docs).catch((error) => console.error(error));
+        reports = snapshot.docs.map((d) => ({
           id: d.id,
           ...d.data()
-        })));
-
-        console.log('Before renderAll() [reports]');
+        }));
         renderAll();
-        console.log('After renderAll() [reports]');
       }
     );
 
     onSnapshot(
       collection(db, 'responders'),
       (snapshot) => {
-        console.log('Responders loaded:', snapshot.size);
         responders = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        console.log('Before renderAll() [responders]');
         renderAll();
-        console.log('After renderAll() [responders]');
       },
       (error) => {
-        console.error('RESPONDERS ERROR:', error);
+        console.error(error);
       }
     );
 
     onSnapshot(
       query(collection(db, 'audit_log'), orderBy('timestamp', 'desc'), limit(50)),
       (snapshot) => {
-        console.log('Audit log loaded:', snapshot.size);
-        console.log('Before audit callback');
         const entries = snapshot.docs.map((d) => d.data());
         document.getElementById('audit-count').textContent = `${entries.length} events`;
         document.getElementById('audit-list').innerHTML = entries.map((e) => `
@@ -897,10 +886,9 @@
             <span class="audit-actor">${escapeHtml(e.actor || 'system')}</span>
           </div>
         `).join('') || '<p class="photos-loading" style="padding:16px 20px;">No activity yet.</p>';
-        console.log('After audit callback');
       },
       (error) => {
-        console.error('AUDIT LOG ERROR:', error);
+        console.error(error);
       }
     );
 
@@ -913,34 +901,50 @@
       });
     });
 
-    document.getElementById('report-list').addEventListener('click', (event) => {
-      const mapBtn = event.target.closest('.show-map-btn');
-      if (mapBtn) {
-        const report = reports.find((r) => r.id === mapBtn.dataset.id);
-        if (report) showMapModal(report);
-        return;
-      }
-      const photosBtn = event.target.closest('.show-photos-btn');
-      if (photosBtn) {
-        const report = reports.find((r) => r.id === photosBtn.dataset.id);
-        showPhotosModal(report ? report.photos : []);
-        return;
-      }
-      const actionBtn = event.target.closest('.mini-action');
-      if (actionBtn) {
-        if (actionBtn.dataset.action === 'dispatched') {
-          openAssignModal(actionBtn.dataset.id);
-        } else {
-          updateReportStatus(actionBtn.dataset.id, actionBtn.dataset.action);
+    function bindReportListEvents(listId, allowDelete = false) {
+      const list = document.getElementById(listId);
+      if (!list) return;
+      list.addEventListener('click', async (event) => {
+        const mapBtn = event.target.closest('.show-map-btn');
+        if (mapBtn) {
+          const report = reports.find((r) => r.id === mapBtn.dataset.id);
+          if (report) showMapModal(report);
+          return;
         }
-        return;
-      }
-      const row = event.target.closest('.report-row');
-      if (row) {
-        const report = reports.find((r) => r.id === row.dataset.id);
-        if (report) openReportDetails(report);
-      }
-    });
+        const photosBtn = event.target.closest('.show-photos-btn');
+        if (photosBtn) {
+          const report = reports.find((r) => r.id === photosBtn.dataset.id);
+          showPhotosModal(report ? report.photos : []);
+          return;
+        }
+        const deleteBtn = event.target.closest('.delete-action');
+        if (deleteBtn && allowDelete) {
+          const reportId = deleteBtn.dataset.id;
+          const report = reports.find((r) => r.id === reportId);
+          if (report) {
+            await confirmAndDeleteArchivedReport(report);
+          }
+          return;
+        }
+        const actionBtn = event.target.closest('.mini-action');
+        if (actionBtn) {
+          if (actionBtn.dataset.action === 'dispatched') {
+            openAssignModal(actionBtn.dataset.id);
+          } else {
+            updateReportStatus(actionBtn.dataset.id, actionBtn.dataset.action);
+          }
+          return;
+        }
+        const row = event.target.closest('.report-row');
+        if (row) {
+          const report = reports.find((r) => r.id === row.dataset.id);
+          if (report) openReportDetails(report);
+        }
+      });
+    }
+
+    bindReportListEvents('report-list');
+    bindReportListEvents('archive-report-list', true);
   }
 </script>
 </body>

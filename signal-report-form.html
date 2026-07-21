@@ -274,6 +274,11 @@
   let selectedType = null;
   let selectedUrgency = null;
   let selectedCoords = null;
+  let selectedAccuracy = null;
+  let selectedLocationSource = null;
+  let selectedLocationAccuracyAccepted = null;
+  let locationWatchId = null;
+  let locationWatchTimer = null;
   let selectedPhotoFiles = []; // { blob, previewUrl }
 
   const MAX_PHOTOS = 3;
@@ -343,6 +348,14 @@
 
   let locationMap = null;
 
+  function classifyLocationQuality(accuracy) {
+    if (accuracy < 20) return 'excellent';
+    if (accuracy <= 50) return 'good';
+    if (accuracy <= 100) return 'acceptable';
+    if (accuracy <= 500) return 'poor';
+    return 'critical';
+  }
+
   function showLocationStatus(accuracy) {
     const box = document.getElementById('locationStatus');
     box.hidden = false;
@@ -389,8 +402,11 @@
     }
   }
 
-  function applyLocation(lat, lon, fallbackLabel) {
+  function applyLocation(lat, lon, fallbackLabel, source = null, accuracy = null) {
     selectedCoords = { lat, lon };
+    selectedAccuracy = accuracy;
+    selectedLocationSource = source;
+    selectedLocationAccuracyAccepted = accuracy !== null ? true : null;
     const detailsDiv = document.getElementById('location-details');
     const label = fallbackLabel || `Current location — ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
     locInput.value = label;
@@ -416,13 +432,54 @@
     checkReady();
   }
 
+  function clearLocationWatch() {
+    if (locationWatchId !== null) {
+      navigator.geolocation.clearWatch(locationWatchId);
+      locationWatchId = null;
+    }
+    if (locationWatchTimer !== null) {
+      clearTimeout(locationWatchTimer);
+      locationWatchTimer = null;
+    }
+    if (!selectedCoords) {
+      useLocBtn.disabled = false;
+      useLocBtn.textContent = 'Use my location';
+    }
+  }
+
+  function updateBestLocation(position) {
+    const accuracy = position.coords.accuracy;
+    const newCoords = { lat: position.coords.latitude, lon: position.coords.longitude };
+    const isBetter = selectedAccuracy === null || accuracy < selectedAccuracy;
+    if (!isBetter) return;
+
+    selectedCoords = newCoords;
+    selectedAccuracy = accuracy;
+    selectedLocationSource = 'gps';
+    selectedLocationAccuracyAccepted = true;
+
+    const fallbackLabel = `Current location — ${newCoords.lat.toFixed(4)}, ${newCoords.lon.toFixed(4)}`;
+    applyLocation(newCoords.lat, newCoords.lon, fallbackLabel, 'gps', accuracy);
+
+    reverseGeocode(newCoords.lat, newCoords.lon).then((address) => {
+      const label = address ? address.short : fallbackLabel;
+      if (selectedCoords && selectedCoords.lat === newCoords.lat && selectedCoords.lon === newCoords.lon && selectedAccuracy === accuracy) {
+        applyLocation(newCoords.lat, newCoords.lon, label, 'gps', accuracy);
+      }
+    }).catch(() => {
+      // ignore reverse geocode failure, fallback label is already shown
+    });
+  }
+
   useLocBtn.addEventListener('click', async () => {
     if (!navigator.geolocation) {
       applyLocation(DISPATCH_CENTER.lat, DISPATCH_CENTER.lon, 'Current location — Jimeta Main Rd (accuracy ~30m)');
       return;
     }
+    clearLocationWatch();
     useLocBtn.disabled = true;
     useLocBtn.textContent = 'Getting location...';
+
     try {
       const position = await new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -431,15 +488,22 @@
           maximumAge: 0
         });
       });
+
       const lat = position.coords.latitude;
       const lon = position.coords.longitude;
+      selectedLocationSource = 'gps';
+      selectedLocationAccuracyAccepted = true;
 
-      console.log("Latitude:", lat);
-      console.log("Longitude:", lon);
-      console.log("Accuracy:", position.coords.accuracy);
+      console.log('Location initial result:', {
+        latitude: lat,
+        longitude: lon,
+        accuracy: position.coords.accuracy,
+        timestamp: position.timestamp,
+        userAgent: navigator.userAgent,
+        requestedHighAccuracy: true,
+      });
 
       showLocationStatus(position.coords.accuracy);
-
       if (position.coords.accuracy > 1000) {
         alert(
           "Your location is only accurate to about "
@@ -448,8 +512,33 @@
         );
       }
 
-      const address = await reverseGeocode(lat, lon);
-      applyLocation(lat, lon, address ? address.short : `Current location — ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+      applyLocation(lat, lon, `Current location — ${lat.toFixed(4)}, ${lon.toFixed(4)}`, 'gps', position.coords.accuracy);
+      updateBestLocation(position);
+
+      locationWatchId = navigator.geolocation.watchPosition((watchPosition) => {
+        console.log('watchPosition update:', {
+          latitude: watchPosition.coords.latitude,
+          longitude: watchPosition.coords.longitude,
+          accuracy: watchPosition.coords.accuracy,
+          timestamp: watchPosition.timestamp,
+          userAgent: navigator.userAgent,
+          highAccuracyReported: watchPosition.coords.altitudeAccuracy !== null || watchPosition.coords.heading !== null || watchPosition.coords.speed !== null,
+        });
+        updateBestLocation(watchPosition);
+        if (watchPosition.coords.accuracy <= 50) {
+          clearLocationWatch();
+        }
+      }, (watchError) => {
+        console.warn('watchPosition error:', watchError);
+      }, {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 20000
+      });
+
+      locationWatchTimer = setTimeout(() => {
+        clearLocationWatch();
+      }, 20000);
     } catch (error) {
       console.error('Geolocation error:', error.code, error.message);
       useLocBtn.disabled = false;
@@ -562,11 +651,17 @@
         status: 'new',
         lat: selectedCoords ? selectedCoords.lat : null,
         lon: selectedCoords ? selectedCoords.lon : null,
+        accuracy: selectedAccuracy ?? null,
+        locationSource: selectedLocationSource ?? null,
+        locationQuality: selectedAccuracy != null ? classifyLocationQuality(selectedAccuracy) : null,
+        locationTimestamp: selectedCoords ? serverTimestamp() : null,
+        locationAccuracyAccepted: selectedLocationAccuracyAccepted,
         photos: [],
         responderId: null,
         responderName: null,
         dispatchTimeMinutes,
         reporterUid: uid,
+        archived: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
@@ -576,10 +671,7 @@
       }
 
       const reportDoc = await addDoc(collection(db, 'reports'), reportData);
-      console.log("Report created:", reportDoc.id);
-
       await logAuditEvent(reportDoc.id, 'report_created', uid, `${selectedType} — ${selectedUrgency}`);
-      console.log("Audit log created");
 
       // Upload photos (if any) now that we have a report ID to namespace them under.
       if (selectedPhotoFiles.length > 0) {
@@ -591,7 +683,6 @@
           urls.push(await getDownloadURL(fileRef));
         }
         await updateDoc(doc(db, 'reports', reportDoc.id), { photos: urls });
-        console.log("Photos uploaded");
       }
 
       // Try to auto-assign the nearest available responder right away.

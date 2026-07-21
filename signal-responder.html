@@ -242,7 +242,7 @@
 
   document.getElementById('mark-resolved').addEventListener('click', async () => {
     if (!currentReportId) return;
-    await updateDoc(doc(db, 'reports', currentReportId), { status: 'resolved', updatedAt: serverTimestamp() });
+    await updateDoc(doc(db, 'reports', currentReportId), { status: 'resolved', updatedAt: serverTimestamp(), resolvedAt: serverTimestamp() });
     await updateDoc(doc(db, 'responders', responderId), { status: 'available', currentReportId: null });
     await logAuditEvent(currentReportId, 'status_changed', auth.currentUser.email, '-> resolved (from responder)');
   });

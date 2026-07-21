@@ -84,13 +84,14 @@ export async function assignNearestResponder(reportId, reportCoords, dispatchMin
   return null; // every candidate was taken between the query and the transaction
 }
 
-export async function logAuditEvent(reportId, action, actor, details) {
+export async function logAuditEvent(reportId, action, actor, details, extra = {}) {
   await addDoc(collection(db, 'audit_log'), {
     reportId,
     action,
     actor,
     details: details || '',
-    timestamp: serverTimestamp()
+    timestamp: serverTimestamp(),
+    ...extra
   });
 }
 
