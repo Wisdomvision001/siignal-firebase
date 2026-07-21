@@ -191,14 +191,23 @@
           <label><i class="fa-solid fa-location-dot"></i> Location</label>
           <div class="loc-row">
             <input type="text" id="loc-input" placeholder="e.g. Jimeta Main Road, near the market">
-            <button type="button" class="loc-btn" id="use-loc">
-              <i class="fa-solid fa-location-dot"></i>
-              Detect location
-            </button>
+              <button type="button" class="loc-btn" id="use-loc">
+                <i class="fa-solid fa-location-dot"></i>
+                Detect location
+              </button>
+              <button type="button" class="loc-btn" id="refresh-loc" style="margin-left:8px; display:none;">Refresh location</button>
           </div>
           <div id="locationStatus" class="location-status" hidden></div>
           <div id="location-map"></div>
           <div class="location-details" id="location-details" style="display:none;"></div>
+          <div id="location-meta" style="display:none; font-family:var(--font-mono); font-size:0.86rem; color:var(--ink-muted); margin-top:8px;">
+            <div id="loc-accuracy">Accuracy: —</div>
+            <div id="loc-quality">Quality: —</div>
+            <div id="loc-source">Source: —</div>
+          </div>
+          <div id="location-warning" style="display:none; margin-top:10px; padding:10px; border-radius:10px; background: #fff7f7; color:var(--warn); font-family:var(--font-mono); font-size:0.9rem;">
+            Low location accuracy. Try moving outdoors, enable high-accuracy mode on your device, or tap Refresh location.
+          </div>
           <div class="loc-confirmed" id="loc-confirmed"><span class="dot"></span>Location attached</div>
         </div>
 
@@ -264,6 +273,7 @@
   const locInput = document.getElementById('loc-input');
   const phoneInput = document.getElementById('phone-input');
   const useLocBtn = document.getElementById('use-loc');
+  const refreshLocBtn = document.getElementById('refresh-loc');
   const locConfirmed = document.getElementById('loc-confirmed');
   const formBody = document.getElementById('form-body');
   const success = document.getElementById('success');
@@ -276,6 +286,7 @@
   let selectedCoords = null;
   let selectedAccuracy = null;
   let selectedLocationSource = null;
+  let selectedLocationAddress = null;
   let selectedLocationAccuracyAccepted = null;
   let locationWatchId = null;
   let locationWatchTimer = null;
@@ -329,20 +340,36 @@
   });
 
   async function reverseGeocode(lat, lon) {
+    // Use OpenStreetMap Nominatim reverse geocoding with timeout and polite identification.
+    // See: https://operations.osmfoundation.org/policies/nominatim/
+    const controller = new AbortController();
+    const timeoutMs = 5000;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
-      const data = await response.json();
-      if (data.address) {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=18&addressdetails=1&accept-language=en&email=signal-app@example.com`;
+      const resp = await fetch(url, {
+        method: 'GET',
+        // Browsers disallow setting User-Agent; Nominatim accepts Referer and email param.
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      clearTimeout(timer);
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      if (data && data.address) {
         const road = data.address.road || data.address.street || data.address.neighbourhood || '';
         const city = data.address.city || data.address.town || data.address.village || data.address.county || '';
         const lga = data.address.district || data.address.municipality || '';
         const state = data.address.state || '';
         const parts = [road, city, lga, state].filter(p => p && p.trim().length > 0);
-        return { short: parts.join(', ') };
+        return { short: parts.join(', '), raw: data };
       }
       return null;
-    } catch (error) {
+    } catch (err) {
+      // timeout or fetch error — fail gracefully
       return null;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -405,13 +432,51 @@
   function applyLocation(lat, lon, fallbackLabel, source = null, accuracy = null) {
     selectedCoords = { lat, lon };
     selectedAccuracy = accuracy;
-    selectedLocationSource = source;
+    // Classify locationSource according to accuracy thresholds.
+    // Preserve explicit 'manual' source when provided.
+    let computedSource = source;
+    if (source !== 'manual') {
+      if (accuracy !== null && accuracy !== undefined) {
+        computedSource = accuracy <= 100 ? 'gps' : 'network';
+      } else if (!source) {
+        computedSource = null;
+      }
+    }
+    selectedLocationSource = computedSource;
     selectedLocationAccuracyAccepted = accuracy !== null ? true : null;
     const detailsDiv = document.getElementById('location-details');
     const label = fallbackLabel || `Current location — ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
     locInput.value = label;
     detailsDiv.innerHTML = `<strong>${escapeHtml(label)}</strong> <i class="fa-solid fa-location-dot"></i> ${lat.toFixed(4)}, ${lon.toFixed(4)}<br><small>Location attached for dispatch</small>`;
     detailsDiv.style.display = 'block';
+
+    // Update metadata UI
+    const meta = document.getElementById('location-meta');
+    const accEl = document.getElementById('loc-accuracy');
+    const qualEl = document.getElementById('loc-quality');
+    const srcEl = document.getElementById('loc-source');
+    if (accuracy !== null && accuracy !== undefined) {
+      accEl.textContent = `Accuracy: ${Math.round(accuracy)} m`;
+      const q = classifyLocationQuality(accuracy);
+      qualEl.textContent = `Quality: ${q}`;
+    } else {
+      accEl.textContent = 'Accuracy: —';
+      qualEl.textContent = 'Quality: —';
+    }
+    srcEl.textContent = `Source: ${source || 'manual'}`;
+    meta.style.display = 'block';
+
+    // Show low-accuracy warning for poor/critical
+    const warn = document.getElementById('location-warning');
+    const quality = selectedAccuracy != null ? classifyLocationQuality(selectedAccuracy) : null;
+    if (quality === 'poor' || quality === 'critical') {
+      warn.style.display = 'block';
+    } else {
+      warn.style.display = 'none';
+    }
+
+    // Show refresh button so user can attempt to refine location
+    if (refreshLocBtn) refreshLocBtn.style.display = 'inline-block';
 
     if (window.L) {
       try {
@@ -445,6 +510,7 @@
       useLocBtn.disabled = false;
       useLocBtn.textContent = 'Use my location';
     }
+    if (refreshLocBtn) refreshLocBtn.style.display = selectedCoords ? 'inline-block' : 'none';
   }
 
   function updateBestLocation(position) {
@@ -463,6 +529,7 @@
 
     reverseGeocode(newCoords.lat, newCoords.lon).then((address) => {
       const label = address ? address.short : fallbackLabel;
+      if (address && address.short) selectedLocationAddress = address.short;
       if (selectedCoords && selectedCoords.lat === newCoords.lat && selectedCoords.lon === newCoords.lon && selectedAccuracy === accuracy) {
         applyLocation(newCoords.lat, newCoords.lon, label, 'gps', accuracy);
       }
@@ -481,6 +548,9 @@
     useLocBtn.textContent = 'Getting location...';
 
     try {
+      // hide refresh while actively (re)detecting
+      if (refreshLocBtn) refreshLocBtn.style.display = 'none';
+      console.log('Starting location request');
       const position = await new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
@@ -494,6 +564,7 @@
       selectedLocationSource = 'gps';
       selectedLocationAccuracyAccepted = true;
 
+      console.log('New position received', { accuracy: position.coords.accuracy });
       console.log('Location initial result:', {
         latitude: lat,
         longitude: lon,
@@ -516,6 +587,7 @@
       updateBestLocation(position);
 
       locationWatchId = navigator.geolocation.watchPosition((watchPosition) => {
+        console.log('New position received', { accuracy: watchPosition.coords.accuracy });
         console.log('watchPosition update:', {
           latitude: watchPosition.coords.latitude,
           longitude: watchPosition.coords.longitude,
@@ -539,13 +611,38 @@
       locationWatchTimer = setTimeout(() => {
         clearLocationWatch();
       }, 20000);
+      // ensure refresh control visible after initial run
+      if (refreshLocBtn) refreshLocBtn.style.display = 'inline-block';
     } catch (error) {
       console.error('Geolocation error:', error.code, error.message);
       useLocBtn.disabled = false;
       useLocBtn.textContent = 'Use my location';
       alert('Could not get your device location. You can still type it manually below.');
+      if (refreshLocBtn) refreshLocBtn.style.display = selectedCoords ? 'inline-block' : 'none';
     }
   });
+
+  // Refresh button re-runs the same capture flow
+  if (refreshLocBtn) {
+    refreshLocBtn.addEventListener('click', () => {
+      console.log('Refresh clicked');
+      // clear any existing watch and timers
+      clearLocationWatch();
+      // reset previously selected coords/accuracy so UI reflects new request
+      selectedCoords = null;
+      selectedAccuracy = null;
+      selectedLocationSource = null;
+      selectedLocationAddress = null;
+      selectedLocationAccuracyAccepted = null;
+      const meta = document.getElementById('location-meta');
+      const warn = document.getElementById('location-warning');
+      if (meta) meta.style.display = 'none';
+      if (warn) warn.style.display = 'none';
+      console.log('Starting location request');
+      // trigger existing Detect flow
+      if (!useLocBtn.disabled) useLocBtn.click();
+    });
+  }
 
   locInput.addEventListener('input', checkReady);
 
@@ -643,6 +740,9 @@
       const uid = auth.currentUser.uid;
       const dispatchTimeMinutes = dispatchMinutesFor(selectedUrgency);
 
+      // If no coords attached, classify as manual entry
+      if (!selectedCoords) selectedLocationSource = 'manual';
+
       const reportData = {
         type: selectedType,
         location: locInput.value.trim(),
@@ -651,6 +751,7 @@
         status: 'new',
         lat: selectedCoords ? selectedCoords.lat : null,
         lon: selectedCoords ? selectedCoords.lon : null,
+        locationAddress: selectedLocationAddress ?? null,
         accuracy: selectedAccuracy ?? null,
         locationSource: selectedLocationSource ?? null,
         locationQuality: selectedAccuracy != null ? classifyLocationQuality(selectedAccuracy) : null,
