@@ -160,9 +160,37 @@
 
   .track-cta{ display:inline-block; text-align:center; margin-top:10px; background:rgba(21,101,192,0.08); color:var(--primary-blue); border:1.5px solid var(--primary-blue); border-radius:10px; padding:13px; font-weight:600; width:100%; }
   .track-cta:hover{ background:var(--primary-blue); color:#fff; }
+
+  @media (max-width: 768px) {
+    .page { padding: 20px 14px 38px; }
+    .card { padding: 24px 18px; }
+    .type-grid { grid-template-columns: 1fr; gap: 12px; }
+    .type-opt { width: 100%; }
+    .loc-row { flex-direction: column; align-items: stretch; }
+    .loc-row input { width: 100%; }
+    .loc-btn { width: 100%; justify-content: center; margin: 0; padding: 12px 16px; min-height: 48px; }
+    #refresh-loc { margin-top: 10px; }
+    .urgency-grid { flex-direction: column; }
+    .urgency-opt { width: 100%; min-height: 48px; }
+    .photo-row { flex-direction: column; gap: 12px; }
+    .photo-previews { width: 100%; gap: 10px; justify-content: flex-start; }
+    .photo-thumb { width: calc(50% - 5px); max-width: 100%; }
+    .photo-thumb img { width: 100%; height: auto; }
+    .photo-remove { width: 22px; height: 22px; }
+    .photo-hint { font-size: 0.8rem; }
+    #location-map { height: 220px; }
+    .location-details { font-size: 0.84rem; }
+    .location-meta { font-size: 0.82rem; }
+    .location-status { font-size: 0.88rem; }
+    .loc-confirmed { justify-content: center; }
+    .form-error { font-size: 0.95rem; }
+    .success { padding-top: 0; }
+    .track-cta { width: 100%; }
+    .submit-btn, .track-cta { min-height: 50px; }
+    button, input, textarea { min-height: 44px; }
+  }
 </style>
 </head>
-<body>
 
 <div class="page">
   <div class="logo"><span class="logo-dot"></span>Signal</div>
@@ -340,6 +368,7 @@
   });
 
   async function reverseGeocode(lat, lon) {
+    console.log('reverseGeocode start', { lat, lon });
     // Use OpenStreetMap Nominatim reverse geocoding with timeout and polite identification.
     // See: https://operations.osmfoundation.org/policies/nominatim/
     const controller = new AbortController();
@@ -354,19 +383,24 @@
         cache: 'no-store'
       });
       clearTimeout(timer);
-      if (!resp.ok) return null;
+      if (!resp.ok) {
+        console.log('reverseGeocode response failed', { status: resp.status, statusText: resp.statusText });
+        return null;
+      }
       const data = await resp.json();
-      if (data && data.address) {
-        const road = data.address.road || data.address.street || data.address.neighbourhood || '';
-        const city = data.address.city || data.address.town || data.address.village || data.address.county || '';
-        const lga = data.address.district || data.address.municipality || '';
-        const state = data.address.state || '';
+      console.log('reverseGeocode response', data);
+      const displayName = data?.display_name || null;
+      if (data && (data.address || displayName)) {
+        const road = data.address?.road || data.address?.street || data.address?.neighbourhood || '';
+        const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || '';
+        const lga = data.address?.district || data.address?.municipality || '';
+        const state = data.address?.state || '';
         const parts = [road, city, lga, state].filter(p => p && p.trim().length > 0);
-        return { short: parts.join(', '), raw: data };
+        return { short: parts.join(', '), displayName, raw: data };
       }
       return null;
     } catch (err) {
-      // timeout or fetch error — fail gracefully
+      console.log('reverseGeocode error', err);
       return null;
     } finally {
       clearTimeout(timer);
@@ -445,9 +479,11 @@
     selectedLocationSource = computedSource;
     selectedLocationAccuracyAccepted = accuracy !== null ? true : null;
     const detailsDiv = document.getElementById('location-details');
-    const label = fallbackLabel || `Current location — ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-    locInput.value = label;
-    detailsDiv.innerHTML = `<strong>${escapeHtml(label)}</strong> <i class="fa-solid fa-location-dot"></i> ${lat.toFixed(4)}, ${lon.toFixed(4)}<br><small>Location attached for dispatch</small>`;
+    const displayLabel = selectedLocationAddress && source !== 'manual'
+      ? selectedLocationAddress
+      : (fallbackLabel || `Current location — ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+    locInput.value = displayLabel;
+    detailsDiv.innerHTML = `<strong>${escapeHtml(displayLabel)}</strong> <i class="fa-solid fa-location-dot"></i> ${lat.toFixed(4)}, ${lon.toFixed(4)}<br><small>Location attached for dispatch</small>`;
     detailsDiv.style.display = 'block';
 
     // Update metadata UI
@@ -517,7 +553,8 @@
     const accuracy = position.coords.accuracy;
     const newCoords = { lat: position.coords.latitude, lon: position.coords.longitude };
     const isBetter = selectedAccuracy === null || accuracy < selectedAccuracy;
-    if (!isBetter) return;
+    const needsGeocode = !selectedLocationAddress;
+    if (!isBetter && !needsGeocode) return;
 
     selectedCoords = newCoords;
     selectedAccuracy = accuracy;
@@ -528,12 +565,19 @@
     applyLocation(newCoords.lat, newCoords.lon, fallbackLabel, 'gps', accuracy);
 
     reverseGeocode(newCoords.lat, newCoords.lon).then((address) => {
-      const label = address ? address.short : fallbackLabel;
-      if (address && address.short) selectedLocationAddress = address.short;
-      if (selectedCoords && selectedCoords.lat === newCoords.lat && selectedCoords.lon === newCoords.lon && selectedAccuracy === accuracy) {
-        applyLocation(newCoords.lat, newCoords.lon, label, 'gps', accuracy);
+      const resolvedLabel = address && (address.short || address.displayName)
+        ? (address.short || address.displayName)
+        : fallbackLabel;
+      if (address && (address.short || address.displayName)) {
+        selectedLocationAddress = address.short || address.displayName;
       }
-    }).catch(() => {
+      console.log('reverseGeocode resolved address', selectedLocationAddress || null);
+      if (selectedCoords && selectedCoords.lat === newCoords.lat && selectedCoords.lon === newCoords.lon && selectedAccuracy === accuracy) {
+        applyLocation(newCoords.lat, newCoords.lon, resolvedLabel, 'gps', accuracy);
+        console.log('applyLocation updated UI with address', selectedLocationAddress ? true : false);
+      }
+    }).catch((err) => {
+      console.log('reverseGeocode catch', err);
       // ignore reverse geocode failure, fallback label is already shown
     });
   }
