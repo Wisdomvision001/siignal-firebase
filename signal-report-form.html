@@ -8,188 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
-<style>
-  :root{
-    --bg:#FFFFFF; --surface:#ECEFF1; --surface-2:#CFD8DC;
-    --gray-light:#B0BEC5; --gray-mid:#78909C; --gray-dark:#546E7A; --ink:#263238;
-    --primary-red:#C62828; --primary-blue:#1565C0; --success-green:#2E7D32; --warning-orange:#EF6C00;
-    --font-display:'Space Grotesk', sans-serif; --font-body:'Inter', sans-serif; --font-mono:'IBM Plex Mono', monospace;
-  }
-  *{box-sizing:border-box; margin:0; padding:0;}
-  body{ font-family:var(--font-body); color:var(--ink); background:var(--surface); -webkit-font-smoothing:antialiased; min-height:100vh; }
-  a{ color:inherit; text-decoration:none; }
-
-  .page{ max-width:520px; margin:0 auto; padding:40px 20px 60px; }
-  .logo{ display:flex; align-items:center; gap:9px; font-family:var(--font-display); font-weight:700; font-size:1.15rem; margin-bottom:30px; color:#05AD98; }
-  .logo-dot{ width:9px; height:9px; border-radius:50%; background:#05AD98; box-shadow:0 0 0 0 rgba(5,173,152,0.45); animation:pulse-dot 2.2s infinite; }
-  @keyframes pulse-dot{ 0%{box-shadow:0 0 0 0 rgba(5,173,152,0.45);} 70%{box-shadow:0 0 0 8px rgba(5,173,152,0);} 100%{box-shadow:0 0 0 0 rgba(5,173,152,0);} }
-
-  .card{ background:#fff; border:1px solid var(--surface-2); border-radius:18px; padding:32px; box-shadow:0 24px 60px -38px rgba(38,50,56,0.14); }
-  .card h1{ font-family:var(--font-display); font-size:1.55rem; font-weight:700; letter-spacing:-0.02em; margin-bottom:8px; color:var(--dark-text); }
-  .card > p{ color:var(--gray-dark); font-size:0.94rem; margin-bottom:26px; }
-
-  .field{ margin-bottom:20px; }
-  .field label{ display:block; font-size:0.88rem; font-weight:700; margin-bottom:10px; color:var(--dark-text); }
-  .field .hint{ font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid); font-weight:400; margin-left:6px; }
-
-  .type-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
-  .type-opt{
-    border:1.5px solid var(--surface-2); border-radius:14px; padding:14px 16px;
-    font-size:0.95rem; font-weight:600; cursor:pointer; transition:all .18s ease;
-    display:flex; align-items:center; gap:12px; position:relative; background:#fff;
-  }
-  .type-opt:hover{ border-color:var(--gray-light); }
-  .type-opt.selected{ border-color:currentColor; color:inherit; }
-  .type-opt.selected::after{ content:'Selected'; margin-left:auto; font-family:var(--font-mono); font-size:0.72rem; font-weight:700; color:inherit; background:rgba(0,0,0,0.06); padding:4px 10px; border-radius:999px; }
-  .type-opt input{ display:none; }
-  .type-opt i{ font-size:22px; width:24px; display:inline-flex; justify-content:center; }
-  .type-opt.medical{ color:var(--primary-blue); }
-  .type-opt.medical.selected{ background:rgba(21,101,192,0.08); }
-  .type-opt.fire{ color:var(--primary-red); }
-  .type-opt.fire.selected{ background:rgba(198,40,40,0.08); }
-  .type-opt.road{ color:var(--warning-orange); }
-  .type-opt.road.selected{ background:rgba(239,108,0,0.1); }
-  .type-opt.flood{ color:var(--primary-blue); }
-  .type-opt.flood.selected{ background:rgba(21,101,192,0.1); }
-  .type-opt.crime{ color:#263238; }
-  .type-opt.crime.selected{ background:rgba(38,50,56,0.08); }
-  .type-opt.other{ color:#6B7280; }
-  .type-opt.other.selected{ background:rgba(107,114,128,0.12); }
-
-  input[type=text], textarea{
-    width:100%; border:1.5px solid var(--surface-2); border-radius:10px; padding:12px 14px;
-    font-family:var(--font-body); font-size:0.9rem; color:var(--ink); resize:vertical;
-    transition:border-color .15s ease;
-  }
-  input[type=text]:focus, textarea:focus{ outline:none; border-color:var(--primary-blue); }
-  textarea{ min-height:88px; }
-
-  .loc-row{ display:flex; gap:10px; }
-  .loc-row input{ flex:1; }
-  .loc-btn{
-    flex-shrink:0; display:flex; align-items:center; gap:8px; border:1.5px solid var(--surface-2);
-    border-radius:10px; padding:0 14px; font-size:0.88rem; font-weight:700; color:var(--dark-text);
-    background:#fff; transition:all .15s ease; cursor:pointer;
-  }
-  .loc-btn:hover{ border-color:var(--primary-blue); color:var(--primary-blue); }
-  .loc-btn:disabled{ opacity:0.6; cursor:not-allowed; }
-  .loc-btn i, .loc-btn svg{ width:18px; height:18px; }
-  .loc-btn{ font-size:0.88rem; }
-  .loc-confirmed{ font-family:var(--font-mono); font-size:0.75rem; color:var(--success-green); margin-top:8px; display:none; align-items:center; gap:6px; }
-  .loc-confirmed.show{ display:flex; }
-  .loc-confirmed .dot{ width:6px; height:6px; border-radius:50%; background:var(--success-green); }
-
-  .location-status{
-    margin-top:12px;
-    padding:14px;
-    border-radius:10px;
-    font-size:15px;
-    line-height:1.6;
-    border-left:5px solid #f59e0b;
-    background:#fff8e6;
-    color:#444;
-  }
-
-  .location-status.good{
-    border-left-color:var(--success-green);
-    background:rgba(46,125,50,0.08);
-  }
-
-  .location-status.warning{
-    border-left-color:var(--warning-orange);
-    background:rgba(239,108,0,0.08);
-  }
-
-  .location-status.error{
-    border-left-color:var(--primary-red);
-    background:rgba(198,40,40,0.08);
-  }
-
-  .urgency-grid{ display:flex; gap:8px; }
-  .urgency-opt{
-    flex:1; text-align:center; border:1.5px solid var(--surface-2); border-radius:10px; padding:10px;
-    font-family:var(--font-mono); font-size:0.78rem; font-weight:600; cursor:pointer; transition:all .15s ease;
-    text-transform:uppercase; letter-spacing:0.03em;
-  }
-  .urgency-opt input{ display:none; }
-  .urgency-opt[data-level="low"].selected{ border-color:var(--gray-mid); background:var(--surface); }
-  .urgency-opt[data-level="moderate"].selected{ border-color:#C98A2E; background:#FBF1E1; color:#C98A2E; }
-  .urgency-opt[data-level="critical"].selected{ border-color:#D64545; background:#FCE9E9; color:#D64545; }
-
-  .submit-btn{
-    width:100%; background:var(--primary-red); color:#fff; border:none; border-radius:10px;
-    padding:15px; font-size:0.95rem; font-weight:700; font-family:var(--font-body);
-    margin-top:6px; transition:transform .15s ease, background .2s ease; cursor:pointer;
-  }
-  .submit-btn:hover{ background:#b71c1c; transform:translateY(-1px); }
-  .submit-btn:disabled{ background:var(--gray-light); cursor:not-allowed; }
-
-  .foot-note{ text-align:center; font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid); margin-top:18px; }
-  .form-error{ display:none; background:#FCE9E9; color:#D64545; font-size:0.82rem; padding:10px 13px; border-radius:8px; margin-bottom:18px; }
-  .form-error.show{ display:block; }
-
-  /* success state */
-  .success{ display:none; text-align:center; padding:20px 0 4px; }
-  .success.show{ display:block; }
-  .success .ring{
-    width:60px; height:60px; border-radius:50%; background:rgba(46,125,50,0.12); color:var(--success-green);
-    display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:1.6rem;
-  }
-  .success .ring i{ font-size:1.6rem; }
-  .success .ring i{ font-size:1.6rem; }
-  .success h2{ font-family:var(--font-display); font-size:1.25rem; margin-bottom:8px; }
-  .success p{ color:var(--gray-dark); font-size:0.9rem; margin-bottom:4px; }
-  .success .ref{ font-family:var(--font-mono); font-size:0.85rem; color:var(--ink); background:var(--surface); display:inline-block; padding:8px 16px; border-radius:8px; margin-top:14px; }
-  .form-body.hidden{ display:none; }
-
-  #location-map{ width:100%; height:280px; border-radius:10px; margin-top:12px; border:1px solid var(--surface-2); }
-  .location-details{ font-family:var(--font-mono); font-size:0.75rem; color:var(--gray-dark); margin-top:10px; line-height:1.5; }
-  .location-details strong{ display:block; color:var(--ink); font-weight:600; margin-bottom:4px; }
-
-  .photo-row{ display:flex; }
-  .photo-previews{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
-  .photo-thumb{ position:relative; width:84px; height:84px; border-radius:10px; overflow:hidden; border:1px solid var(--surface-2); }
-  .photo-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
-  .photo-remove{
-    position:absolute; top:3px; right:3px; width:20px; height:20px; border-radius:50%;
-    background:rgba(28,31,31,0.75); color:#fff; font-size:0.85rem; line-height:1; display:flex;
-    align-items:center; justify-content:center; padding:0; border:none; cursor:pointer;
-  }
-  .photo-remove:hover{ background:#000; }
-  .photo-hint{ font-family:var(--font-mono); font-size:0.72rem; color:var(--gray-mid); margin-top:8px; }
-
-  .track-cta{ display:inline-block; text-align:center; margin-top:10px; background:rgba(21,101,192,0.08); color:var(--primary-blue); border:1.5px solid var(--primary-blue); border-radius:10px; padding:13px; font-weight:600; width:100%; }
-  .track-cta:hover{ background:var(--primary-blue); color:#fff; }
-
-  @media (max-width: 768px) {
-    .page { padding: 20px 14px 38px; }
-    .card { padding: 24px 18px; }
-    .type-grid { grid-template-columns: 1fr; gap: 12px; }
-    .type-opt { width: 100%; }
-    .loc-row { flex-direction: column; align-items: stretch; }
-    .loc-row input { width: 100%; }
-    .loc-btn { width: 100%; justify-content: center; margin: 0; padding: 12px 16px; min-height: 48px; }
-    #refresh-loc { margin-top: 10px; }
-    .urgency-grid { flex-direction: column; }
-    .urgency-opt { width: 100%; min-height: 48px; }
-    .photo-row { flex-direction: column; gap: 12px; }
-    .photo-previews { width: 100%; gap: 10px; justify-content: flex-start; }
-    .photo-thumb { width: calc(50% - 5px); max-width: 100%; }
-    .photo-thumb img { width: 100%; height: auto; }
-    .photo-remove { width: 22px; height: 22px; }
-    .photo-hint { font-size: 0.8rem; }
-    #location-map { height: 220px; }
-    .location-details { font-size: 0.84rem; }
-    .location-meta { font-size: 0.82rem; }
-    .location-status { font-size: 0.88rem; }
-    .loc-confirmed { justify-content: center; }
-    .form-error { font-size: 0.95rem; }
-    .success { padding-top: 0; }
-    .track-cta { width: 100%; }
-    .submit-btn, .track-cta { min-height: 50px; }
-    button, input, textarea { min-height: 44px; }
-  }
-</style>
+<link rel="stylesheet" href="css/shared.css">
+<link rel="stylesheet" href="css/report-form.css">
 </head>
 
 <div class="page">
@@ -197,81 +17,169 @@
 
   <div class="card">
     <div class="form-body" id="form-body">
-      <h1>Emergency Incident Report</h1>
-      <p>Tell us what's happening and where. Signal maps it instantly and routes the nearest responder.</p>
+      <div class="hero-panel">
+        <div class="hero-eyebrow">Rapid dispatch</div>
+        <h1>Emergency Incident Report</h1>
+        <p>Tell us what’s happening, and where. Signal mapped it instantly and routed the nearest responder.</p>
+      </div>
 
       <div class="form-error" id="form-error"></div>
 
       <form id="report-form">
+          <div class="field section-head">
+            <div class="section-title">Emergency Type</div>
+            <div class="section-note">Choose the emergency category that best describes your situation.</div>
+          </div>
           <div class="field">
-          <label>What kind of incident? <span class="hint">select one</span></label>
-          <div class="type-grid" id="type-grid">
-            <button type="button" class="type-opt medical" data-type="Medical emergency"><input type="radio" name="type" value="Medical emergency"><i class="fa-solid fa-kit-medical"></i>Medical</button>
-            <button type="button" class="type-opt fire" data-type="Fire"><input type="radio" name="type" value="Fire"><i class="fa-solid fa-fire"></i>Fire</button>
-            <button type="button" class="type-opt road" data-type="Road accident"><input type="radio" name="type" value="Road accident"><i class="fa-solid fa-car-burst"></i>Road accident</button>
-            <button type="button" class="type-opt flood" data-type="Flood risk"><input type="radio" name="type" value="Flood risk"><i class="fa-solid fa-house-flood-water"></i>Flood risk</button>
-            <button type="button" class="type-opt crime" data-type="Crime in progress"><input type="radio" name="type" value="Crime in progress"><i class="fa-solid fa-shield-halved"></i>Crime</button>
-            <button type="button" class="type-opt other" data-type="Other"><input type="radio" name="type" value="Other"><i class="fa-solid fa-ellipsis"></i>Other</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label><i class="fa-solid fa-location-dot"></i> Location</label>
-          <div class="loc-row">
-            <input type="text" id="loc-input" placeholder="e.g. Jimeta Main Road, near the market">
-              <button type="button" class="loc-btn" id="use-loc">
-                <i class="fa-solid fa-location-dot"></i>
-                Detect location
-              </button>
-              <button type="button" class="loc-btn" id="refresh-loc" style="margin-left:8px; display:none;">Refresh location</button>
-          </div>
-          <div id="locationStatus" class="location-status" hidden></div>
-          <div id="location-map"></div>
-          <div class="location-details" id="location-details" style="display:none;"></div>
-          <div id="location-meta" style="display:none; font-family:var(--font-mono); font-size:0.86rem; color:var(--ink-muted); margin-top:8px;">
-            <div id="loc-accuracy">Accuracy: —</div>
-            <div id="loc-quality">Quality: —</div>
-            <div id="loc-source">Source: —</div>
-          </div>
-          <div id="location-warning" style="display:none; margin-top:10px; padding:10px; border-radius:10px; background: #fff7f7; color:var(--warn); font-family:var(--font-mono); font-size:0.9rem;">
-            Low location accuracy. Try moving outdoors, enable high-accuracy mode on your device, or tap Refresh location.
-          </div>
-          <div class="loc-confirmed" id="loc-confirmed"><span class="dot"></span>Location attached</div>
-        </div>
-
-        <div class="field">
-          <label><i class="fa-solid fa-mobile-screen-button"></i> Phone Number <span class="hint">optional</span></label>
-          <input type="tel" id="phone-input" placeholder="+234 800 000 0000">
-        </div>
-
-        <div class="field">
-          <label><i class="fa-solid fa-camera"></i> Photos <span class="hint">optional, up to 3</span></label>
-          <div class="photo-row">
-            <input type="file" id="photo-input" accept="image/*" capture="environment" multiple style="display:none">
-            <button type="button" class="loc-btn" id="add-photo-btn">
-              <i class="fa-solid fa-camera"></i>
-              Add photo
+            <label>What kind of incident? <span class="hint">choose one category</span></label>
+            <div class="type-grid" id="type-grid">
+            <button type="button" class="type-opt emergency-card medical" data-type="Medical emergency">
+              <div class="image-wrapper">
+                <img src="images/medical-emergency.png" alt="Medical emergency illustration" class="emergency-image">
+              </div>
+              <div class="type-copy">
+                <div class="emergency-title">Medical Emergency</div>
+                <div class="emergency-description">Building medical response for injury, collapse, or severe illness</div>
+              </div>
+            </button>
+            <button type="button" class="type-opt emergency-card fire" data-type="Fire Incident">
+              <div class="image-wrapper">
+                <img src="images/fire-emergency.png" alt="Fire emergency illustration" class="emergency-image">
+              </div>
+              <div class="type-copy">
+                <div class="emergency-title">Fire Emergency</div>
+                <div class="emergency-description">Building fire, smoke, explosion or rescue incident</div>
+              </div>
+            </button>
+            <button type="button" class="type-opt emergency-card road" data-type="Road Accident">
+              <div class="image-wrapper">
+                <img src="images/road-accident.png" alt="Road accident illustration" class="emergency-image">
+              </div>
+              <div class="type-copy">
+                <div class="emergency-title">Road Accident</div>
+                <div class="emergency-description">Vehicle crash response with emergency rescue operations</div>
+              </div>
+            </button>
+            <button type="button" class="type-opt emergency-card flood" data-type="Water Emergency">
+              <div class="image-wrapper">
+                <img src="images/flood-emergency.png" alt="Flood emergency illustration" class="emergency-image">
+              </div>
+              <div class="type-copy">
+                <div class="emergency-title">Water Emergency</div>
+                <div class="emergency-description">Flooding, water rescue or drowning response</div>
+              </div>
+            </button>
+            <button type="button" class="type-opt emergency-card crime" data-type="Security Emergency">
+              <div class="image-wrapper">
+                <img src="images/security-emergency.png" alt="Security emergency illustration" class="emergency-image">
+              </div>
+              <div class="type-copy">
+                <div class="emergency-title">Security Emergency</div>
+                <div class="emergency-description">Police, security or rescue response for threats and incidents</div>
+              </div>
+            </button>
+            <button type="button" class="type-opt emergency-card other" data-type="Other">
+              <div class="image-wrapper">
+                <img src="images/other-emergency.png" alt="Other emergency illustration" class="emergency-image">
+              </div>
+              <div class="type-copy">
+                <div class="emergency-title">Other Emergency</div>
+                <div class="emergency-description">General emergency response for any other urgent situation</div>
+              </div>
             </button>
           </div>
-          <div class="photo-previews" id="photo-previews"></div>
-          <div class="photo-hint" id="photo-hint">Snap the nearest signboard, landmark, or the scene — helps responders recognize the spot.</div>
         </div>
 
-        <div class="field">
-          <label><i class="fa-solid fa-align-left"></i> Description <span class="hint">optional</span></label>
-          <textarea id="desc-input" placeholder="Any details that help responders — number of people affected, visible hazards, access notes..."></textarea>
-        </div>
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">Current Location</div>
+            <div class="section-note">Use GPS or type a nearby address so responders can find you faster.</div>
+          </div>
 
-        <div class="field">
-          <label><i class="fa-solid fa-triangle-exclamation"></i> Priority</label>
-          <div class="urgency-grid" id="urgency-grid">
-            <button type="button" class="urgency-opt" data-level="low"><input type="radio" name="urgency" value="low">Low</button>
-            <button type="button" class="urgency-opt" data-level="moderate"><input type="radio" name="urgency" value="moderate">Moderate</button>
-            <button type="button" class="urgency-opt" data-level="critical"><input type="radio" name="urgency" value="critical">Critical</button>
+          <div class="field">
+            <label><i class="fa-solid fa-location-dot"></i> Location</label>
+            <div class="loc-row">
+              <input type="text" id="loc-input" placeholder="e.g. Jimeta Main Road, near the market">
+                <button type="button" class="loc-btn" id="use-loc">
+                  <i class="fa-solid fa-location-dot"></i>
+                  Detect location
+                </button>
+                <button type="button" class="loc-btn" id="refresh-loc">Refresh location</button>
+            </div>
+            <div id="locationStatus" class="location-status" hidden></div>
+            <div id="location-map"></div>
+            <div class="location-details" id="location-details"></div>
+            <div id="location-meta">
+              <div id="loc-accuracy">Accuracy: —</div>
+              <div id="loc-quality">Quality: —</div>
+              <div id="loc-source">Source: —</div>
+            </div>
+            <div id="location-warning">
+              Low location accuracy. Try moving outdoors, enable high-accuracy mode on your device, or tap Refresh location.
+            </div>
+            <div class="field">
+              <label><i class="fa-solid fa-mobile-screen-button"></i> Phone Number <span class="hint">optional</span></label>
+              <input type="tel" id="phone-input" placeholder="+234 800 000 0000">
+            </div>
+            <div class="loc-confirmed" id="loc-confirmed"><span class="dot"></span>Location attached</div>
           </div>
         </div>
 
-        <button type="submit" class="submit-btn" id="submit-btn" disabled><i class="fa-solid fa-paper-plane"></i> Submit Emergency Report</button>
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">Photo Upload</div>
+            <div class="section-note">Add up to three images to show responders the scene and nearby landmarks.</div>
+          </div>
+
+          <div class="field">
+            <label><i class="fa-solid fa-camera"></i> Photos <span class="hint">optional, up to 3</span></label>
+            <div class="photo-row">
+              <input type="file" id="photo-input" accept="image/*" capture="environment" multiple>
+              <button type="button" class="loc-btn" id="add-photo-btn">
+                <i class="fa-solid fa-camera"></i>
+                Add photo
+              </button>
+            </div>
+            <div class="photo-previews" id="photo-previews"></div>
+            <div class="photo-hint" id="photo-hint">Snap the nearest signboard, landmark, or the scene — helps responders recognize the spot.</div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">Description</div>
+            <div class="section-note">Provide extra details like hazards, number of people, or access instructions.</div>
+          </div>
+
+          <div class="field">
+            <label><i class="fa-solid fa-align-left"></i> Description <span class="hint">optional</span></label>
+            <textarea id="desc-input" placeholder="Any details that help responders — number of people affected, visible hazards, access notes..."></textarea>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">Priority</div>
+            <div class="section-note">Select the level of urgency so dispatch can prioritize response.</div>
+          </div>
+
+          <div class="field">
+            <label><i class="fa-solid fa-triangle-exclamation"></i> Priority</label>
+            <div class="urgency-grid" id="urgency-grid">
+              <button type="button" class="urgency-opt" data-level="low"><input type="radio" name="urgency" value="low">Low</button>
+              <button type="button" class="urgency-opt" data-level="moderate"><input type="radio" name="urgency" value="moderate">Moderate</button>
+              <button type="button" class="urgency-opt" data-level="critical"><input type="radio" name="urgency" value="critical">Critical</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card submit-panel">
+          <div class="section-head">
+            <div class="section-title">Submit your report</div>
+            <div class="section-note">Review your emergency details and tap send when ready.</div>
+          </div>
+          <button type="submit" class="submit-btn" id="submit-btn" disabled><i class="fa-solid fa-paper-plane"></i> Submit Emergency Report</button>
+        </div>
       </form>
       <div class="foot-note">Your report and location are shared only with dispatch and responders.</div>
     </div>
@@ -291,7 +199,7 @@
 <script type="module">
   import { auth, db, storage } from './firebase-init.js';
   import { signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-  import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+  import { collection, addDoc, updateDoc, doc, serverTimestamp, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
   import { ref as storageRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
   import { validateReportInput, dispatchMinutesFor, escapeHtml, DISPATCH_CENTER } from './utils.js';
   import { assignNearestResponder, logAuditEvent } from './dispatch.js';
@@ -308,8 +216,160 @@
   const successLine = document.getElementById('success-line');
   const refCode = document.getElementById('ref-code');
   const formError = document.getElementById('form-error');
+  const dispatchCountEl = document.getElementById('dispatch-count');
+  const reportsCountEl = document.getElementById('reports-count');
+  const accuracyCountEl = document.getElementById('accuracy-count');
+  const heroPanel = document.querySelector('.hero-panel');
 
   let selectedType = null;
+  let heroStatsTriggered = false;
+  let heroVisible = false;
+  let heroAccuracyTarget = 0;
+  let heroAccuracyKnown = false;
+  let reportsTarget = 0;
+  let reportsLoaded = false;
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function animateCountUp(el, target, duration) {
+    if (!el) return;
+    if (prefersReducedMotion) {
+      el.textContent = String(target);
+      return;
+    }
+
+    const startValue = Number(el.textContent) || 0;
+    if (startValue === target) {
+      el.textContent = String(target);
+      return;
+    }
+
+    const statCard = el.closest('.hero-stat-card');
+    if (statCard) statCard.classList.add('counting');
+
+    const startTime = performance.now();
+    const range = target - startValue;
+
+    const step = (timestamp) => {
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const value = Math.floor(startValue + range * progress);
+      el.textContent = String(value);
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        el.textContent = String(target);
+        if (statCard) {
+          statCard.classList.remove('counting');
+          statCard.classList.add('count-done');
+          window.setTimeout(() => statCard.classList.remove('count-done'), 320);
+        }
+      }
+    };
+
+    requestAnimationFrame(step);
+  }
+
+  function setHeroCountsInstant() {
+    dispatchCountEl.textContent = '98';
+    reportsCountEl.textContent = String(reportsTarget);
+    accuracyCountEl.textContent = heroAccuracyKnown ? String(heroAccuracyTarget) : '0';
+  }
+
+  function startHeroStats() {
+    if (heroStatsTriggered) return;
+    heroStatsTriggered = true;
+
+    if (prefersReducedMotion) {
+      setHeroCountsInstant();
+      return;
+    }
+
+    dispatchCountEl.textContent = '0';
+    reportsCountEl.textContent = '0';
+    accuracyCountEl.textContent = '0';
+
+    const begin = () => {
+      animateCountUp(dispatchCountEl, 98, 1500);
+      if (reportsLoaded) {
+        animateCountUp(reportsCountEl, reportsTarget, Math.min(2000, Math.max(1200, reportsTarget * 20)));
+      }
+      if (heroAccuracyKnown) {
+        animateCountUp(accuracyCountEl, heroAccuracyTarget, 1500);
+      }
+    };
+
+    requestAnimationFrame(() => window.setTimeout(begin, 120));
+  }
+
+  function updateReportsCount(count) {
+    reportsTarget = count;
+    reportsLoaded = true;
+    const current = Number(reportsCountEl.textContent) || 0;
+    if (heroVisible && !heroStatsTriggered) {
+      startHeroStats();
+    } else if (heroVisible && heroStatsTriggered) {
+      if (current < reportsTarget) {
+        animateCountUp(reportsCountEl, reportsTarget, Math.min(1200, reportsTarget * 10));
+      } else if (current > reportsTarget) {
+        reportsCountEl.textContent = String(reportsTarget);
+      }
+    } else {
+      // Keep the hero stat at zero while the panel remains off-screen,
+      // so the live count-up is visible when the user scrolls down.
+      if (!heroStatsTriggered) {
+        reportsCountEl.textContent = '0';
+      }
+    }
+  }
+
+  function updateAccuracyCount(value) {
+    heroAccuracyTarget = Math.round(value);
+    heroAccuracyKnown = true;
+    const current = Number(accuracyCountEl.textContent) || 0;
+    if (heroVisible && !heroStatsTriggered) {
+      startHeroStats();
+    } else if (heroVisible && heroStatsTriggered) {
+      if (current < heroAccuracyTarget) {
+        animateCountUp(accuracyCountEl, heroAccuracyTarget, 1200);
+      } else if (current > heroAccuracyTarget) {
+        accuracyCountEl.textContent = String(heroAccuracyTarget);
+      }
+    } else {
+      if (!heroStatsTriggered) {
+        accuracyCountEl.textContent = '0';
+      }
+    }
+  }
+
+  function heroVisibilityChanged(entries) {
+    if (heroVisible) return;
+    if (entries.some((entry) => entry.isIntersecting)) {
+      heroVisible = true;
+      startHeroStats();
+    }
+  }
+
+  if (heroPanel && 'IntersectionObserver' in window) {
+    const heroObserver = new IntersectionObserver(heroVisibilityChanged, { threshold: 0.4 });
+    heroObserver.observe(heroPanel);
+
+    requestAnimationFrame(() => {
+      const rect = heroPanel.getBoundingClientRect();
+      if (!heroVisible && rect.top < window.innerHeight && rect.bottom > 0) {
+        heroVisible = true;
+        startHeroStats();
+        heroObserver.disconnect();
+      }
+    });
+  } else {
+    heroVisible = true;
+    startHeroStats();
+  }
+
+  onSnapshot(collection(db, 'reports'), (snapshot) => {
+    updateReportsCount(snapshot.size);
+  });
   let selectedUrgency = null;
   let selectedCoords = null;
   let selectedAccuracy = null;
@@ -495,6 +555,7 @@
       accEl.textContent = `Accuracy: ${Math.round(accuracy)} m`;
       const q = classifyLocationQuality(accuracy);
       qualEl.textContent = `Quality: ${q}`;
+      updateAccuracyCount(accuracy);
     } else {
       accEl.textContent = 'Accuracy: —';
       qualEl.textContent = 'Quality: —';
@@ -856,3 +917,4 @@
 </script>
 </body>
 </html>
+
