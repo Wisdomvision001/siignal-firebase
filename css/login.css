@@ -1,0 +1,125 @@
+:root {
+  --surface: #F4F6F6;
+  --surface-2: #EDEFEF;
+  --gray-mid: #878787;
+  --gray-dark: #4A4D4D;
+  --ink: #1C1F1F;
+  --teal: #05AD98;
+  --teal-dark: #048572;
+  --red: #D64545;
+  --red-light: #FCE9E9;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--surface);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card {
+  padding: 36px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 20px 50px -30px rgba(28, 31, 31, 0.15);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+  margin-bottom: 8px;
+}
+
+.logo-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--teal);
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  margin-bottom: 6px;
+}
+
+p.sub {
+  color: var(--gray-dark);
+  font-size: 0.88rem;
+  margin-bottom: 24px;
+}
+
+label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+input {
+  width: 100%;
+  border: 1.5px solid var(--surface-2);
+  border-radius: 10px;
+  padding: 11px 13px;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
+button {
+  width: 100%;
+  background: var(--ink);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 13px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+button:hover {
+  background: var(--teal-dark);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  display: none;
+  background: var(--red-light);
+  color: var(--red);
+  font-size: 0.82rem;
+  padding: 10px 13px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.error.show {
+  display: block;
+}
+
+.foot-note {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--gray-mid);
+  margin-top: 20px;
+}
