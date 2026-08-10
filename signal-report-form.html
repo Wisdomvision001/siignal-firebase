@@ -221,6 +221,11 @@
   const accuracyCountEl = document.getElementById('accuracy-count');
   const heroPanel = document.querySelector('.hero-panel');
 
+  // Feature guard: hero stat elements were removed in the UI redesign.
+  // When these elements are not present, disable the hero stats logic
+  // to avoid null `textContent` errors while preserving other flows.
+  const hasHeroStats = Boolean(dispatchCountEl && reportsCountEl && accuracyCountEl);
+
   let selectedType = null;
   let heroStatsTriggered = false;
   let heroVisible = false;
@@ -271,12 +276,15 @@
   }
 
   function setHeroCountsInstant() {
-    dispatchCountEl.textContent = '98';
-    reportsCountEl.textContent = String(reportsTarget);
-    accuracyCountEl.textContent = heroAccuracyKnown ? String(heroAccuracyTarget) : '0';
+    if (!hasHeroStats) return;
+    if (dispatchCountEl) dispatchCountEl.textContent = '98';
+    if (reportsCountEl) reportsCountEl.textContent = String(reportsTarget);
+    if (accuracyCountEl) accuracyCountEl.textContent = heroAccuracyKnown ? String(heroAccuracyTarget) : '0';
   }
 
   function startHeroStats() {
+    // No-op when hero stat elements are absent.
+    if (!hasHeroStats) return;
     if (heroStatsTriggered) return;
     heroStatsTriggered = true;
 
@@ -285,16 +293,16 @@
       return;
     }
 
-    dispatchCountEl.textContent = '0';
-    reportsCountEl.textContent = '0';
-    accuracyCountEl.textContent = '0';
+    if (dispatchCountEl) dispatchCountEl.textContent = '0';
+    if (reportsCountEl) reportsCountEl.textContent = '0';
+    if (accuracyCountEl) accuracyCountEl.textContent = '0';
 
     const begin = () => {
-      animateCountUp(dispatchCountEl, 98, 1500);
-      if (reportsLoaded) {
+      if (dispatchCountEl) animateCountUp(dispatchCountEl, 98, 1500);
+      if (reportsLoaded && reportsCountEl) {
         animateCountUp(reportsCountEl, reportsTarget, Math.min(2000, Math.max(1200, reportsTarget * 20)));
       }
-      if (heroAccuracyKnown) {
+      if (heroAccuracyKnown && accuracyCountEl) {
         animateCountUp(accuracyCountEl, heroAccuracyTarget, 1500);
       }
     };
@@ -303,8 +311,10 @@
   }
 
   function updateReportsCount(count) {
+    // Update internal counters but avoid touching DOM when hero stats are absent.
     reportsTarget = count;
     reportsLoaded = true;
+    if (!hasHeroStats || !reportsCountEl) return;
     const current = Number(reportsCountEl.textContent) || 0;
     if (heroVisible && !heroStatsTriggered) {
       startHeroStats();
@@ -315,8 +325,6 @@
         reportsCountEl.textContent = String(reportsTarget);
       }
     } else {
-      // Keep the hero stat at zero while the panel remains off-screen,
-      // so the live count-up is visible when the user scrolls down.
       if (!heroStatsTriggered) {
         reportsCountEl.textContent = '0';
       }
@@ -326,6 +334,7 @@
   function updateAccuracyCount(value) {
     heroAccuracyTarget = Math.round(value);
     heroAccuracyKnown = true;
+    if (!hasHeroStats || !accuracyCountEl) return;
     const current = Number(accuracyCountEl.textContent) || 0;
     if (heroVisible && !heroStatsTriggered) {
       startHeroStats();
@@ -350,7 +359,9 @@
     }
   }
 
-  if (heroPanel && 'IntersectionObserver' in window) {
+  // Only observe hero visibility when hero stat elements exist. Otherwise
+  // skip the visibility observer and don't attempt to start stat animations.
+  if (hasHeroStats && heroPanel && 'IntersectionObserver' in window) {
     const heroObserver = new IntersectionObserver(heroVisibilityChanged, { threshold: 0.4 });
     heroObserver.observe(heroPanel);
 
@@ -363,8 +374,8 @@
       }
     });
   } else {
+    // No hero stat DOM — mark visible so other logic doesn't wait on it.
     heroVisible = true;
-    startHeroStats();
   }
 
   onSnapshot(collection(db, 'reports'), (snapshot) => {
