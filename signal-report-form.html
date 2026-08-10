@@ -219,12 +219,7 @@
   const dispatchCountEl = document.getElementById('dispatch-count');
   const reportsCountEl = document.getElementById('reports-count');
   const accuracyCountEl = document.getElementById('accuracy-count');
-  const heroPanel = document.querySelector('.hero-panel');
-
-  // Feature guard: hero stat elements were removed in the UI redesign.
-  // When these elements are not present, disable the hero stats logic
-  // to avoid null `textContent` errors while preserving other flows.
-  const hasHeroStats = Boolean(dispatchCountEl && reportsCountEl && accuracyCountEl);
+  const heroPanel = null; // hero statistic UI removed from this page
 
   let selectedType = null;
   let heroStatsTriggered = false;
@@ -276,45 +271,23 @@
   }
 
   function setHeroCountsInstant() {
-    if (!hasHeroStats) return;
     if (dispatchCountEl) dispatchCountEl.textContent = '98';
     if (reportsCountEl) reportsCountEl.textContent = String(reportsTarget);
     if (accuracyCountEl) accuracyCountEl.textContent = heroAccuracyKnown ? String(heroAccuracyTarget) : '0';
   }
 
   function startHeroStats() {
-    // No-op when hero stat elements are absent.
-    if (!hasHeroStats) return;
     if (heroStatsTriggered) return;
     heroStatsTriggered = true;
-
-    if (prefersReducedMotion) {
-      setHeroCountsInstant();
-      return;
-    }
-
-    if (dispatchCountEl) dispatchCountEl.textContent = '0';
-    if (reportsCountEl) reportsCountEl.textContent = '0';
-    if (accuracyCountEl) accuracyCountEl.textContent = '0';
-
-    const begin = () => {
-      if (dispatchCountEl) animateCountUp(dispatchCountEl, 98, 1500);
-      if (reportsLoaded && reportsCountEl) {
-        animateCountUp(reportsCountEl, reportsTarget, Math.min(2000, Math.max(1200, reportsTarget * 20)));
-      }
-      if (heroAccuracyKnown && accuracyCountEl) {
-        animateCountUp(accuracyCountEl, heroAccuracyTarget, 1500);
-      }
-    };
-
-    requestAnimationFrame(() => window.setTimeout(begin, 120));
+    // Hero statistic elements were removed from the report form.
+    // Preserve the user flow by disabling the obsolete count animation.
   }
 
   function updateReportsCount(count) {
-    // Update internal counters but avoid touching DOM when hero stats are absent.
     reportsTarget = count;
     reportsLoaded = true;
-    if (!hasHeroStats || !reportsCountEl) return;
+    if (!reportsCountEl) return;
+
     const current = Number(reportsCountEl.textContent) || 0;
     if (heroVisible && !heroStatsTriggered) {
       startHeroStats();
@@ -325,6 +298,8 @@
         reportsCountEl.textContent = String(reportsTarget);
       }
     } else {
+      // Keep the hero stat at zero while the panel remains off-screen,
+      // so the live count-up is visible when the user scrolls down.
       if (!heroStatsTriggered) {
         reportsCountEl.textContent = '0';
       }
@@ -334,7 +309,8 @@
   function updateAccuracyCount(value) {
     heroAccuracyTarget = Math.round(value);
     heroAccuracyKnown = true;
-    if (!hasHeroStats || !accuracyCountEl) return;
+    if (!accuracyCountEl) return;
+
     const current = Number(accuracyCountEl.textContent) || 0;
     if (heroVisible && !heroStatsTriggered) {
       startHeroStats();
@@ -359,24 +335,9 @@
     }
   }
 
-  // Only observe hero visibility when hero stat elements exist. Otherwise
-  // skip the visibility observer and don't attempt to start stat animations.
-  if (hasHeroStats && heroPanel && 'IntersectionObserver' in window) {
-    const heroObserver = new IntersectionObserver(heroVisibilityChanged, { threshold: 0.4 });
-    heroObserver.observe(heroPanel);
-
-    requestAnimationFrame(() => {
-      const rect = heroPanel.getBoundingClientRect();
-      if (!heroVisible && rect.top < window.innerHeight && rect.bottom > 0) {
-        heroVisible = true;
-        startHeroStats();
-        heroObserver.disconnect();
-      }
-    });
-  } else {
-    // No hero stat DOM — mark visible so other logic doesn't wait on it.
-    heroVisible = true;
-  }
+  // Hero statistic UI was removed from this page, so skip the visibility observer.
+  heroVisible = true;
+  startHeroStats();
 
   onSnapshot(collection(db, 'reports'), (snapshot) => {
     updateReportsCount(snapshot.size);
