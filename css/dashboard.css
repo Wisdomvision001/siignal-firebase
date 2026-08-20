@@ -38,7 +38,6 @@ button {
 .sidebar {
   background: #1e293b;
   border: 1px solid rgba(148, 163, 184, 0.12);
-  border-radius: 24px;
   padding: 28px 22px;
   display: flex;
   flex-direction: column;
@@ -937,3 +936,46 @@ button {
   }
 
 /* --- End extracted block --- */
+
+/* Final mobile layout corrections */
+@media (max-width: 680px) {
+  .sidebar {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  }
+
+  .sidebar .nav-item {
+    max-width: none !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    white-space: normal !important;
+  }
+
+  #responders-panel .panel-head {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 8px 12px !important;
+  }
+
+  #responders-panel .panel-head .count {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .stat-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (min-width: 681px) {
+  .sidebar {
+    border-radius: 0 !important;
+  }
+
+  #responders-panel .primary-button {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+}
