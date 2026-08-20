@@ -41,7 +41,7 @@
 </div>
 
 <script type="module">
-  import { auth, db, firebaseConfig } from './firebase-init.js';
+  import { auth, db } from './firebase-init.js';
   import { signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
   import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
@@ -69,11 +69,6 @@
 
   async function routeResponder(uid) {
     const staffDoc = await getDoc(doc(db, 'staff', uid));
-    console.log('AUTH UID:', uid);
-    console.log('STAFF PATH:', `staff/${uid}`);
-    console.log('STAFF EXISTS:', staffDoc.exists());
-    console.log('STAFF DATA:', staffDoc.exists() ? staffDoc.data() : null);
-    console.log('FIREBASE PROJECT:', firebaseConfig.projectId);
     if (staffDoc.exists() && staffDoc.data().role === 'responder' && staffDoc.data().responderId) {
       window.location.href = 'signal-responder.html';
       return;
