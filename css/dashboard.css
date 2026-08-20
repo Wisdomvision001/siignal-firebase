@@ -979,3 +979,29 @@ button {
     white-space: nowrap;
   }
 }
+
+#responders-panel .panel-head {
+  flex-wrap: wrap;
+}
+
+#responders-panel .panel-head .count {
+  flex-basis: 100%;
+}
+
+@media (min-width: 681px) {
+  #responders-panel {
+    max-height: 520px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #responder-list {
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-color: #ffffff transparent;
+  }
+
+  #responder-list::-webkit-scrollbar-thumb {
+    background: #ffffff;
+  }
+}
