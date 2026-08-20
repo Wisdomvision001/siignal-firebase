@@ -60,6 +60,10 @@ service cloud.firestore {
       return isDispatcher() || isResponder();
     }
 
+    function isValidResponderStatus(status) {
+      return status in ['available', 'assigned', 'accepted', 'enroute', 'busy', 'offline'];
+    }
+
     // ---------------- staff ----------------
     match /staff/{uid} {
       // Each staff member can read their own role doc (needed to decide
@@ -75,8 +79,11 @@ service cloud.firestore {
     // ---------------- responders ----------------
     match /responders/{responderId} {
       allow get, list: if isStaffMember();
-      allow create: if isStaffMember();
-      allow update: if isStaffMember();
+      allow create: if isStaffMember()
+        && request.resource.data.status is string
+        && isValidResponderStatus(request.resource.data.status);
+      allow update: if isStaffMember()
+        && (!('status' in request.resource.data) || isValidResponderStatus(request.resource.data.status));
       allow delete: if isDispatcher();
     }
 

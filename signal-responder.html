@@ -37,6 +37,22 @@
   .share-status{ font-family:var(--font-mono); font-size:0.75rem; color:var(--gray-mid); margin-top:10px; }
   .share-status.live{ color:var(--teal-dark); }
 
+  .profile-card{ background:#fff; border:1px solid var(--surface-2); border-radius:16px; padding:22px; margin-bottom:20px; }
+  .profile-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:18px; }
+  .profile-header h2{ font-family:var(--font-display); font-size:1.05rem; }
+  .eyebrow{ font-family:var(--font-mono); font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--gray-mid); margin-bottom:6px; }
+  .status-badge{ display:inline-flex; align-items:center; justify-content:center; border-radius:999px; padding:6px 10px; font-family:var(--font-mono); font-size:0.7rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; }
+  .status-badge.available{ background:rgba(5,173,152,0.12); color:#0F766E; }
+  .status-badge.assigned{ background:rgba(14,116,144,0.12); color:#0F766E; }
+  .status-badge.accepted{ background:rgba(59,130,246,0.12); color:#1D4ED8; }
+  .status-badge.enroute{ background:rgba(59,130,246,0.12); color:#1D4ED8; }
+  .status-badge.busy{ background:rgba(245,158,11,0.12); color:#92400E; }
+  .status-badge.offline{ background:rgba(148,163,184,0.12); color:#475569; }
+  .profile-grid{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; }
+  .profile-item{ background:var(--surface); border:1px solid var(--surface-2); border-radius:12px; padding:12px 14px; }
+  .profile-item .label{ display:block; font-family:var(--font-mono); font-size:0.7rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--gray-mid); margin-bottom:6px; }
+  .profile-item strong{ display:block; font-size:0.96rem; color:var(--ink); word-break:break-word; }
+
   .assignment-card{ background:#fff; border:1px solid var(--surface-2); border-radius:16px; padding:22px; }
   .assignment-empty{ text-align:center; color:var(--gray-mid); font-size:0.9rem; padding:20px 0; }
   .assignment-header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
@@ -50,6 +66,7 @@
   #responder-map{ width:100%; height:240px; border-radius:12px; border:1px solid var(--surface-2); margin-bottom:16px; }
   .action-row{ display:flex; gap:10px; }
   .action-row button{ flex:1; border:none; border-radius:10px; padding:13px; font-weight:600; font-size:0.88rem; }
+  .btn-accept{ background:var(--teal); color:#fff; }
   .btn-enroute{ background:var(--amber-light); color:var(--amber); }
   .btn-resolve{ background:var(--teal); color:#fff; }
   .photos-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
@@ -79,6 +96,38 @@
     <div class="share-status" id="share-status">Off — dispatch and the reporter can't see your position.</div>
   </div>
 
+  <div class="profile-card" id="responder-profile-card">
+    <div class="profile-header">
+      <div>
+        <div class="eyebrow">Responder profile</div>
+        <h2>Operations identity</h2>
+      </div>
+      <span class="status-badge" id="profile-status">—</span>
+    </div>
+    <div class="profile-grid">
+      <div class="profile-item">
+        <span class="label">Name</span>
+        <strong id="profile-name">—</strong>
+      </div>
+      <div class="profile-item">
+        <span class="label">Callsign</span>
+        <strong id="profile-callsign">—</strong>
+      </div>
+      <div class="profile-item">
+        <span class="label">Unit type</span>
+        <strong id="profile-unit-type">—</strong>
+      </div>
+      <div class="profile-item">
+        <span class="label">Response category</span>
+        <strong id="profile-response-category">—</strong>
+      </div>
+      <div class="profile-item" style="grid-column:1 / -1;">
+        <span class="label">Branch</span>
+        <strong id="profile-branch">—</strong>
+      </div>
+    </div>
+  </div>
+
   <div class="assignment-card" id="assignment-card">
     <div class="assignment-empty" id="assignment-empty">No active assignment right now. Turn on location sharing so dispatch can route the next report to you.</div>
     <div id="assignment-content" style="display:none;">
@@ -92,6 +141,7 @@
       <p class="assignment-desc" id="assign-desc"></p>
       <div id="responder-map"></div>
       <div class="action-row">
+          <button class="btn-accept" id="accept-response" style="display:none;">Accept Response</button>
         <button class="btn-enroute" id="mark-enroute">En route</button>
         <button class="btn-resolve" id="mark-resolved">Mark resolved</button>
       </div>
@@ -109,7 +159,59 @@
   import { logAuditEvent } from './dispatch.js';
 
   const pageError = document.getElementById('page-error');
+  const BRANCHES = [
+    {
+      id: 'NG-AD-JIM',
+      name: 'Jimeta Branch'
+    }
+  ];
+  const STATUS_LABELS = {
+    available: 'Available',
+    assigned: 'Assigned',
+    accepted: 'Accepted',
+    enroute: 'En route',
+    busy: 'Busy',
+    offline: 'Offline'
+  };
+  const RESPONSE_CATEGORY_LABELS = {
+    medical: 'Medical',
+    fire: 'Fire & Rescue',
+    accident: 'Road Accident',
+    water_rescue: 'Water Rescue',
+    security: 'Security',
+    general: 'General Emergency'
+  };
+
   function showError(msg) { pageError.textContent = msg; pageError.classList.add('show'); }
+
+  function resolveBranchName(branchId) {
+    const branch = BRANCHES.find((item) => item.id === branchId);
+    return branch ? branch.name : 'Unassigned';
+  }
+
+  function resolveResponseCategoryLabel(category) {
+    return RESPONSE_CATEGORY_LABELS[category] || '—';
+  }
+
+  function renderResponderProfile(responderData) {
+    const profileStatus = document.getElementById('profile-status');
+    const profileName = document.getElementById('profile-name');
+    const profileCallsign = document.getElementById('profile-callsign');
+    const profileUnitType = document.getElementById('profile-unit-type');
+    const profileResponseCategory = document.getElementById('profile-response-category');
+    const profileBranch = document.getElementById('profile-branch');
+
+    const status = responderData?.status || 'offline';
+    const normalizedStatus = STATUS_LABELS[status] ? status : 'offline';
+
+    profileStatus.textContent = STATUS_LABELS[normalizedStatus] || 'Offline';
+    profileStatus.className = `status-badge ${normalizedStatus}`;
+    profileName.textContent = responderData?.name || '—';
+    profileCallsign.textContent = responderData?.callsign || '—';
+    profileUnitType.textContent = responderData?.unitType || '—';
+    profileResponseCategory.textContent = resolveResponseCategoryLabel(responderData?.responseCategory);
+    profileBranch.textContent = resolveBranchName(responderData?.branchId);
+  }
 
   let responderId = null;
   let watchId = null;
@@ -195,17 +297,26 @@
   function renderAssignment(responderData, reportData) {
     const emptyEl = document.getElementById('assignment-empty');
     const contentEl = document.getElementById('assignment-content');
+    const acceptBtn = document.getElementById('accept-response');
+    const enrouteBtn = document.getElementById('mark-enroute');
 
     if (!responderData.currentReportId || !reportData) {
       emptyEl.style.display = 'block';
       contentEl.style.display = 'none';
       currentReportId = null;
+      acceptBtn.style.display = 'none';
+      enrouteBtn.style.display = 'block';
       return;
     }
 
     currentReportId = responderData.currentReportId;
     emptyEl.style.display = 'none';
     contentEl.style.display = 'block';
+
+    const isAssigned = responderData.status === 'assigned';
+    const isAccepted = responderData.status === 'accepted';
+    acceptBtn.style.display = isAssigned ? 'block' : 'none';
+    enrouteBtn.style.display = isAssigned || isAccepted ? 'none' : 'block';
 
     document.getElementById('assign-location').textContent = reportData.location;
     document.getElementById('assign-type').textContent = reportData.type;
@@ -234,6 +345,13 @@
     photosRow.innerHTML = (reportData.photos || []).map((src) => `<img src="${src}" alt="Reporter photo">`).join('');
   }
 
+  document.getElementById('accept-response').addEventListener('click', async () => {
+    if (!currentReportId) return;
+    await updateDoc(doc(db, 'responders', responderId), { status: 'accepted', updatedAt: serverTimestamp() });
+    await updateDoc(doc(db, 'reports', currentReportId), { status: 'accepted', updatedAt: serverTimestamp() });
+    await logAuditEvent(currentReportId, 'status_changed', auth.currentUser.email, '-> accepted (from responder)');
+  });
+
   document.getElementById('mark-enroute').addEventListener('click', async () => {
     if (!currentReportId) return;
     await updateDoc(doc(db, 'reports', currentReportId), { status: 'enroute', updatedAt: serverTimestamp() });
@@ -253,6 +371,8 @@
     onSnapshot(doc(db, 'responders', responderId), (snap) => {
       if (!snap.exists()) return;
       const responderData = snap.data();
+
+      renderResponderProfile(responderData);
 
       if (unsubscribeReport) { unsubscribeReport(); unsubscribeReport = null; }
 

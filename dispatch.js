@@ -52,11 +52,10 @@ export async function assignNearestResponder(reportId, reportCoords, dispatchMin
         }
 
         tx.update(responderRef, {
-          status: 'enroute',
+          status: 'assigned',
           currentReportId: reportId
         });
         tx.update(reportRef, {
-          status: 'enroute',
           responderId: candidate.id,
           responderName: freshResponder.data().name,
           responderAssignedAt: serverTimestamp(),

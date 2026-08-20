@@ -76,10 +76,10 @@
   .table-empty{ text-align:center; color:var(--gray); font-family:var(--font-mono); padding:40px 0; }
   .modal-backdrop{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(15,23,42,0.35); z-index:1000; padding:20px; }
   .modal-backdrop.show{ display:flex; }
-  .modal{ width:100%; max-width:520px; background:var(--surface); border-radius:22px; box-shadow:0 28px 80px rgba(15,23,42,0.18); overflow:hidden; }
+  .modal{ width:100%; max-width:520px; max-height:calc(100vh - 40px); max-height:calc(100dvh - 40px); display:flex; flex-direction:column; background:var(--surface); border-radius:22px; box-shadow:0 28px 80px rgba(15,23,42,0.18); overflow:hidden; }
   .modal-head{ padding:22px 24px 14px; border-bottom:1px solid var(--surface-2); }
   .modal-head h2{ margin:0; font-family:var(--font-display); font-size:1.1rem; }
-  .modal-body{ padding:20px 24px 24px; display:grid; gap:16px; }
+  .modal-body{ min-height:0; overflow-y:auto; padding:20px 24px 24px; display:grid; gap:16px; }
   .field{ display:flex; flex-direction:column; gap:8px; }
   .field label{ font-size:0.82rem; font-weight:600; color:var(--gray); }
   .field input, .field select{ width:100%; border:1px solid var(--surface-2); border-radius:14px; padding:12px 14px; font-size:0.95rem; color:var(--ink); background:#fff; }
@@ -138,6 +138,7 @@
             <th>Callsign</th>
             <th>Name</th>
             <th>Unit type</th>
+            <th>Branch</th>
             <th class="status-cell">Status</th>
             <th>Assigned incident</th>
             <th>Last updated</th>
@@ -167,19 +168,32 @@
         <input id="responder-callsign" name="callsign" type="text" maxlength="24" autocomplete="off" required />
       </div>
       <div class="field">
-        <label for="responder-unit">Unit type</label>
-        <input id="responder-unit" name="unitType" type="text" maxlength="40" autocomplete="off" required />
-      </div>
-      <div class="field">
-        <label for="responder-status">Status</label>
-        <select id="responder-status" name="status" required>
-          <option value="available">Available</option>
-          <option value="enroute">En route</option>
-          <option value="busy">Busy</option>
-          <option value="offline">Offline</option>
+        <label for="responder-unit-type">Unit type</label>
+        <select id="responder-unit-type" name="unitType" required>
+          <option value="">Select unit type</option>
         </select>
       </div>
-      <p class="notice">Only responder name, callsign, unit type and status are managed here. Assigned incidents remain untouched.</p>
+      <div class="field">
+        <label for="responder-response-category">Response Category</label>
+        <select id="responder-response-category" name="responseCategory" required>
+          <option value="">Select response category</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="responder-branch">Branch</label>
+        <select id="responder-branch" name="branchId" required>
+          <option value="">Select branch</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="responder-email">Responder Email</label>
+        <input id="responder-email" name="email" type="email" autocomplete="off" required />
+      </div>
+      <div class="field">
+        <label for="responder-password">Temporary Password</label>
+        <input id="responder-password" name="password" type="password" minlength="6" autocomplete="new-password" required />
+      </div>
+      <p class="notice">Only responder name, callsign, unit type and branch are managed here. Responder status is determined automatically by the system. Assigned incidents remain untouched.</p>
       <p class="alert" id="form-alert" role="alert" aria-live="assertive"></p>
     </form>
     <div class="modal-foot">
@@ -190,19 +204,23 @@
 </div>
 
 <script type="module">
-  import { auth, db } from './firebase-init.js';
+  import { app, auth, db } from './firebase-init.js';
+  import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
   import {
     collection,
     query,
     orderBy,
     onSnapshot,
     doc,
-    addDoc,
     updateDoc,
     deleteDoc,
+    getDocs,
     serverTimestamp
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
   import { escapeHtml, getRelativeTime } from './utils.js';
+
+  const functions = getFunctions(app, 'us-central1');
+  const createResponderAccount = httpsCallable(functions, 'createResponderAccount');
 
   const STATUS_OPTIONS = ['all', 'available', 'enroute', 'busy', 'offline'];
   const STATUS_LABELS = {
@@ -218,6 +236,35 @@
     offline: 'offline'
   };
 
+  const BRANCHES = [
+    {
+      id: "NG-AD-JIM",
+      name: "Jimeta Branch",
+      country: "Nigeria",
+      region: "Adamawa"
+    }
+  ];
+
+  const UNIT_TYPES = [
+    'Ambulance',
+    'Medical Response Unit',
+    'Fire Engine',
+    'Fire Rescue Unit',
+    'Security Response Unit',
+    'Police Response Unit',
+    'Road Rescue Unit',
+    'Search & Rescue Unit'
+  ];
+
+  const RESPONSE_CATEGORIES = [
+    { label: 'Medical', value: 'medical' },
+    { label: 'Fire & Rescue', value: 'fire' },
+    { label: 'Road Accident', value: 'accident' },
+    { label: 'Security', value: 'security' },
+    { label: 'Water Rescue', value: 'water_rescue' },
+    { label: 'General Emergency', value: 'general' }
+  ];
+
   const searchInput = document.getElementById('search-input');
   const statusFilters = document.getElementById('status-filters');
   const tableBody = document.getElementById('responder-table-body');
@@ -232,11 +279,33 @@
   const cancelModal = document.getElementById('cancel-modal');
   const saveResponderButton = document.getElementById('save-responder');
   const backDashboard = document.getElementById('back-dashboard');
+  const branchSelect = document.getElementById('responder-branch');
+  const unitTypeSelect = document.getElementById('responder-unit-type');
+  const responseCategorySelect = document.getElementById('responder-response-category');
 
   let responders = [];
   let activeFilter = 'all';
   let searchTerm = '';
   let editingId = null;
+  let isSavingResponder = false;
+
+  function setSaveButtonState(isSaving) {
+    saveResponderButton.disabled = isSaving;
+    saveResponderButton.textContent = isSaving ? 'Saving...' : 'Save';
+  }
+
+  branchSelect.innerHTML = [
+    '<option value="">Select branch</option>',
+    ...BRANCHES.map((branch) => `<option value="${escapeHtml(branch.id)}">${escapeHtml(branch.name)}</option>`)
+  ].join('');
+  unitTypeSelect.innerHTML = [
+    '<option value="">Select unit type</option>',
+    ...UNIT_TYPES.map((unitType) => `<option value="${escapeHtml(unitType)}">${escapeHtml(unitType)}</option>`)
+  ].join('');
+  responseCategorySelect.innerHTML = [
+    '<option value="">Select response category</option>',
+    ...RESPONSE_CATEGORIES.map(({ label, value }) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`)
+  ].join('');
 
   function formatDateLabel(timestamp) {
     if (!timestamp) return '—';
@@ -313,7 +382,7 @@
     showAllCount.textContent = `Showing ${filtered.length} of ${responders.length}`;
     if (!filtered.length) {
       tableBody.innerHTML = `
-        <tr><td colspan="7" class="table-empty">No responders match the search or filter. Adjust the search term or status filter.</td></tr>
+        <tr><td colspan="8" class="table-empty">No responders match the search or filter. Adjust the search term or status filter.</td></tr>
       `;
       return;
     }
@@ -321,6 +390,7 @@
     tableBody.innerHTML = filtered.map((responder) => {
       const status = STATUS_LABELS[responder.status] || 'Busy';
       const badgeClass = STATUS_CLASSES[responder.status] || 'busy';
+      const branchName = BRANCHES.find((branch) => branch.id === responder.branchId)?.name || 'Unassigned';
       const assigned = responder.currentReportId ? `#${escapeHtml(String(responder.currentReportId).slice(-6).toUpperCase())}` : '—';
       const updated = formatDateLabel(responder.updatedAt || responder.statusUpdatedAt);
       return `
@@ -328,6 +398,7 @@
           <td>${escapeHtml(responder.callsign || '—')}</td>
           <td>${escapeHtml(responder.name || '—')}</td>
           <td>${escapeHtml(responder.unitType || '—')}</td>
+          <td>${escapeHtml(branchName)}</td>
           <td class="status-cell"><span class="badge ${badgeClass}">${escapeHtml(status)}</span></td>
           <td>${assigned}</td>
           <td>${escapeHtml(updated)}</td>
@@ -344,6 +415,8 @@
     formAlert.textContent = '';
     responderForm.reset();
     editingId = null;
+    isSavingResponder = false;
+    setSaveButtonState(false);
     modalTitle.textContent = mode === 'edit' ? 'Edit responder' : 'Add responder';
 
     if (responder) {
@@ -351,49 +424,64 @@
       responderForm.elements.name.value = responder.name || '';
       responderForm.elements.callsign.value = responder.callsign || '';
       responderForm.elements.unitType.value = responder.unitType || '';
-      responderForm.elements.status.value = responder.status || 'available';
-    } else {
-      responderForm.elements.status.value = 'available';
+      responderForm.elements.responseCategory.value = responder.responseCategory || '';
+      responderForm.elements.branchId.value = responder.branchId || '';
+      responderForm.elements.email.value = responder.email || '';
     }
+    responderForm.elements.responseCategory.value = responder ? responder.responseCategory || '' : '';
+    responderForm.elements.branchId.value = responder ? responder.branchId || '' : '';
 
     modalBackdrop.classList.add('show');
     modalBackdrop.setAttribute('aria-hidden', 'false');
   }
 
-  function closeModal() {
+  function closeModal({ resetSaveButton = true } = {}) {
+    responderForm.reset();
+    formAlert.textContent = '';
+    if (resetSaveButton) {
+      setSaveButtonState(false);
+    }
     modalBackdrop.classList.remove('show');
     modalBackdrop.setAttribute('aria-hidden', 'true');
     editingId = null;
   }
 
   async function saveResponder() {
+    if (isSavingResponder) return;
+
+    isSavingResponder = true;
+    setSaveButtonState(true);
+
     const name = responderForm.elements.name.value.trim();
     const callsign = responderForm.elements.callsign.value.trim();
     const unitType = responderForm.elements.unitType.value.trim();
-    const status = responderForm.elements.status.value;
+    const responseCategory = responderForm.elements.responseCategory.value;
+    const branchId = responderForm.elements.branchId.value;
+    const email = responderForm.elements.email.value.trim();
+    const password = responderForm.elements.password.value;
 
-    if (!name || !callsign || !unitType) {
-      formAlert.textContent = 'Name, callsign, and unit type are required.';
+    if (!name || !callsign || !unitType || !responseCategory || !branchId || (!editingId && (!email || !password))) {
+      formAlert.textContent = 'Name, callsign, unit type, response category, and branch are required.';
+      isSavingResponder = false;
+      setSaveButtonState(false);
       return;
     }
-    if (!['available', 'enroute', 'busy', 'offline'].includes(status)) {
-      formAlert.textContent = 'Invalid status selected.';
-      return;
-    }
 
-    const payload = {
-      name,
-      callsign,
-      unitType,
-      status,
-      available: status === 'available',
-      statusUpdatedAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    };
+    if (!editingId) {
+      const normalizedCallsign = callsign.trim().toLowerCase();
+      const existingResponders = await getDocs(collection(db, 'responders'));
+      const duplicateExists = existingResponders.docs.some((snapshotDoc) => {
+        const existingCallsign = snapshotDoc.data()?.callsign;
+        return typeof existingCallsign === 'string' && existingCallsign.trim().toLowerCase() === normalizedCallsign;
+      });
 
-    const responderDoc = editingId ? responders.find((item) => item.id === editingId) : null;
-    if (responderDoc && status === 'available' && responderDoc.currentReportId) {
-      payload.currentReportId = null;
+      if (duplicateExists) {
+        formAlert.textContent = 'A responder with this callsign already exists.';
+        isSavingResponder = false;
+        setSaveButtonState(false);
+        showToast('A responder with this callsign already exists.', 'error');
+        return;
+      }
     }
 
     try {
@@ -401,28 +489,46 @@
       console.log('auth.currentUser:', auth.currentUser);
       console.log('auth.currentUser?.uid:', auth.currentUser?.uid);
       console.log('authenticated:', Boolean(auth.currentUser));
-      const operation = editingId ? 'updateDoc' : 'addDoc';
-      const path = editingId ? `responders/${editingId}` : 'responders/<new>';
+      const operation = editingId ? 'updateDoc' : 'createResponderAccount';
+      const path = editingId ? `responders/${editingId}` : 'functions/createResponderAccount';
       console.log('operation:', operation);
       console.log('path:', path);
-      console.log('data payload:', payload);
       console.groupEnd();
 
       if (editingId) {
+        const payload = {
+          name,
+          callsign,
+          unitType,
+          responseCategory,
+          branchId,
+          status: 'available',
+          currentReportId: null,
+          updatedAt: serverTimestamp()
+        };
         console.log('Executing updateDoc on responders/' + editingId, payload);
         await updateDoc(doc(db, 'responders', editingId), payload);
-        closeModal();
+        responderForm.reset();
+        closeModal({ resetSaveButton: false });
         showToast('Responder updated successfully.', 'success');
       } else {
-        console.log('Executing addDoc on responders', { ...payload, currentReportId: null });
-        await addDoc(collection(db, 'responders'), {
-          ...payload,
-          currentReportId: null
+        await createResponderAccount({
+          name,
+          callsign,
+          unitType,
+          responseCategory,
+          branchId,
+          email,
+          password
         });
-        closeModal();
+        responderForm.reset();
+        closeModal({ resetSaveButton: false });
         showToast('Responder added successfully.', 'success');
       }
+      isSavingResponder = false;
     } catch (error) {
+      isSavingResponder = false;
+      setSaveButtonState(false);
       formAlert.textContent = 'Unable to save responder. Please try again.';
       console.error(error);
       showToast('Unable to save responder. Please try again.', 'error');

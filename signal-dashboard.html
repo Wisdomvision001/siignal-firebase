@@ -23,6 +23,7 @@
     <div class="logo"><span class="logo-dot"></span>Signal</div>
     <a class="nav-item active" href="#overview-panel" data-view="overview"><i class="fa-solid fa-gauge-high"></i>Dashboard</a>
     <a class="nav-item" href="#report-panel" data-view="overview"><i class="fa-solid fa-clipboard-list"></i>Reports</a>
+    <a class="nav-item" href="#report-panel" data-view="overview"><i class="fa-solid fa-triangle-exclamation"></i>Emergency Reports</a>
     <a class="nav-item" href="#archive-panel" data-view="archive"><i class="fa-solid fa-archive"></i>Archive</a>
     <a class="nav-item" href="#responders-panel" data-view="overview"><i class="fa-solid fa-people-group"></i>Responders</a>
     <a class="nav-item" href="#activity-panel" data-view="activity"><i class="fa-solid fa-list-check"></i>Audit log</a>
@@ -92,7 +93,7 @@
           </div>
 
           <div class="panel" id="responders-panel">
-            <div class="panel-head"><h2><i class="fa-solid fa-people-group"></i> Responders</h2><span class="count" id="responder-count">0 online</span></div>
+            <div class="panel-head"><h2><i class="fa-solid fa-people-group"></i> Responders</h2><a class="primary-button" href="signal-responder-management.html"><i class="fa-solid fa-user-plus"></i> Add Responder</a><span class="count" id="responder-count">0 online</span></div>
             <div id="responder-list"></div>
           </div>
         </div>
@@ -190,7 +191,7 @@
   initDashboard();
 
   document.getElementById('logout-btn').addEventListener('click', () => {
-    window.location.href = 'signal-landing.html';
+    window.location.href = 'index.html';
   });
 
   // ---------------- View switching ----------------
@@ -278,17 +279,16 @@
     await updateDoc(doc(db, 'reports', reportId), {
       responderId: responder.id,
       responderName: responder.name || 'Responder',
-      status: 'dispatched',
       updatedAt: serverTimestamp()
     });
 
     await updateDoc(doc(db, 'responders', responderId), {
-      status: 'enroute',
+      status: 'assigned',
       currentReportId: reportId,
       updatedAt: serverTimestamp()
     });
 
-    await logAuditEvent(reportId, 'status_changed', 'DISPATCH OPERATOR', `Assigned ${responder.name || 'responder'} -> dispatched`);
+    await logAuditEvent(reportId, 'status_changed', 'DISPATCH OPERATOR', `Assigned ${responder.name || 'responder'} -> assigned`);
     closeAssignModal();
   }
 

@@ -8,6 +8,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/shared.css">
 <link rel="stylesheet" href="css/login.css">
+<style>
+  .role-options{ display:grid; gap:12px; }
+  .back-btn{ margin-top:4px; background:var(--surface-2); color:var(--ink); }
+  .back-btn:hover{ background:var(--gray-mid); }
+</style>
 </head>
 <body>
 
@@ -18,52 +23,80 @@
 
   <div class="error" id="login-error"></div>
 
-  <form id="login-form">
+  <div id="role-selection" class="role-options">
+    <button type="button" id="admin-login-btn">Login as Admin</button>
+    <button type="button" id="responder-login-btn">Login as Responder</button>
+  </div>
+
+  <form id="login-form" hidden>
     <label for="email">Email</label>
     <input type="email" id="email" autocomplete="username" required>
     <label for="password">Password</label>
     <input type="password" id="password" autocomplete="current-password" required>
     <button type="submit" id="login-btn">Sign in</button>
+    <button type="button" class="back-btn" id="back-btn">Back</button>
   </form>
 
   <div class="foot-note">Accounts are created by an administrator in the Firebase console — see the project README.</div>
 </div>
 
 <script type="module">
-  import { auth, db } from './firebase-init.js';
+  import { auth, db, firebaseConfig } from './firebase-init.js';
   import { signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
   import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
   const form = document.getElementById('login-form');
   const errorBox = document.getElementById('login-error');
   const loginBtn = document.getElementById('login-btn');
+  const roleSelection = document.getElementById('role-selection');
+  const adminLoginBtn = document.getElementById('admin-login-btn');
+  const responderLoginBtn = document.getElementById('responder-login-btn');
+  const backBtn = document.getElementById('back-btn');
 
   function showError(message) {
     errorBox.textContent = message;
     errorBox.classList.add('show');
   }
 
-  async function routeByRole(uid) {
+  function showRoleSelection() {
+    form.hidden = true;
+    roleSelection.hidden = false;
+    errorBox.classList.remove('show');
+    form.reset();
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Sign in';
+  }
+
+  async function routeResponder(uid) {
     const staffDoc = await getDoc(doc(db, 'staff', uid));
-    if (!staffDoc.exists()) {
-      showError('This account has no staff role assigned. Ask a dispatcher to set one up in Firestore under /staff/' + uid + '.');
-      await auth.signOut();
-      loginBtn.disabled = false;
-      loginBtn.textContent = 'Sign in';
+    console.log('AUTH UID:', uid);
+    console.log('STAFF PATH:', `staff/${uid}`);
+    console.log('STAFF EXISTS:', staffDoc.exists());
+    console.log('STAFF DATA:', staffDoc.exists() ? staffDoc.data() : null);
+    console.log('FIREBASE PROJECT:', firebaseConfig.projectId);
+    if (staffDoc.exists() && staffDoc.data().role === 'responder' && staffDoc.data().responderId) {
+      window.location.href = 'signal-responder.html';
       return;
     }
-    const role = staffDoc.data().role;
-    if (role === 'dispatcher') {
-      window.location.href = 'signal-dashboard.html';
-    } else if (role === 'responder') {
-      window.location.href = 'signal-responder.html';
-    } else {
-      showError('Unknown role "' + role + '" — expected "dispatcher" or "responder".');
-      await auth.signOut();
-      loginBtn.disabled = false;
-      loginBtn.textContent = 'Sign in';
-    }
+
+    showError('This account is not configured as a responder. Check the /staff/{uid} role and responderId fields.');
+    await auth.signOut();
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Sign in';
   }
+
+  adminLoginBtn.addEventListener('click', () => {
+    window.location.href = 'signal-dashboard.html';
+  });
+
+  responderLoginBtn.addEventListener('click', () => {
+    roleSelection.hidden = true;
+    form.hidden = false;
+    errorBox.classList.remove('show');
+    document.getElementById('email').focus();
+  });
+
+  backBtn.addEventListener('click', showRoleSelection);
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -76,7 +109,7 @@
 
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password);
-      await routeByRole(credential.user.uid);
+      await routeResponder(credential.user.uid);
     } catch (error) {
       showError('Could not sign in — check the email and password and try again.');
       loginBtn.disabled = false;
@@ -84,10 +117,17 @@
     }
   });
 
-  // If already signed in (e.g. came back to this page by mistake), route immediately.
-  auth.onAuthStateChanged((user) => {
+  // If a responder is already signed in, route them to the responder page.
+  auth.onAuthStateChanged(async (user) => {
     if (user && !user.isAnonymous) {
-      routeByRole(user.uid);
+      try {
+        const staffDoc = await getDoc(doc(db, 'staff', user.uid));
+        if (staffDoc.exists() && staffDoc.data().role === 'responder' && staffDoc.data().responderId) {
+          window.location.href = 'signal-responder.html';
+        }
+      } catch (error) {
+        console.error('Unable to check signed-in responder role', error);
+      }
     }
   });
 </script>
